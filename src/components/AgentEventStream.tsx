@@ -6,7 +6,7 @@ export function AgentEventStream({ events, status }: { events: AgentEvent[]; sta
   return (
     <section className={`${styles.streamPanel} panel`}>
       <div className={styles.panelHeader}>
-        <Title kicker="Agent stream" title="Live events" />
+        <Title kicker="Agent stream" title="Live agent thoughts" />
         <span className={styles.badge}>{status}</span>
       </div>
       <ol className={styles.eventList} aria-live="polite">

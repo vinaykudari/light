@@ -6,7 +6,7 @@ export async function runPatientVoiceAgent(context: AgentContext): Promise<{
   themes: PatientVoiceTheme[];
   sourceMode: "real" | "mock";
 }> {
-  await context.emit("patient_voice", "running", "Searching public patient-experience signals", "Trying X recent search first, then live public web snippets if the X API tier blocks search.");
+  await context.emit("patient_voice", "running", "Searching public patient-experience signals", "Discovering X status links, then hydrating post text through the Claw localizer X API.");
   const result = await searchPatientVoice(context.patient);
   if (result.message) {
     await context.emit("patient_voice", "running", "Source handoff", result.message);

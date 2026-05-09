@@ -2,56 +2,87 @@ import { getEnvValue } from "@/lib/env";
 import { seedVoiceThemes, seedXPosts } from "@/lib/demo/seedXPosts";
 import type { PatientProfile, PatientVoicePost, PatientVoiceTheme } from "@/lib/types";
 
-export async function searchPatientVoice(patient: PatientProfile): Promise<{
+type VoiceResult = {
   posts: PatientVoicePost[];
   themes: PatientVoiceTheme[];
   sourceMode: "real" | "mock";
   message?: string;
-}> {
-  const x = await searchX(patient);
-  if (x.posts.length) return { posts: x.posts, themes: clusterVoice(x.posts), sourceMode: "real" };
+};
 
-  const web = await searchPublicWeb(patient);
-  if (web.posts.length) {
+export async function searchPatientVoice(patient: PatientProfile): Promise<VoiceResult> {
+  const xApi = await searchViaClawLocalizer(patient);
+  const web = xApi.posts.length < 4 ? await searchPublicWeb(patient) : { posts: [] };
+  const posts = dedupePosts([...xApi.posts, ...web.posts]).slice(0, 12);
+  if (posts.length) {
     return {
-      posts: web.posts,
-      themes: clusterVoice(web.posts),
+      posts,
+      themes: clusterVoice(posts),
       sourceMode: "real",
-      message: x.message ? `${x.message}; using live public web search snippets` : "Using live public web search snippets",
+      message: buildMessage(xApi.message, web.posts.length),
     };
   }
-
   return {
     posts: seedXPosts,
     themes: seedVoiceThemes,
     sourceMode: "mock",
-    message: `${x.message ?? "X API unavailable"}; public web search unavailable, using seeded synthetic signals`,
+    message: `${xApi.message ?? "Claw localizer X API returned no usable posts"}; using seeded synthetic signals`,
   };
 }
 
-async function searchX(patient: PatientProfile): Promise<{ posts: PatientVoicePost[]; message?: string }> {
-  const token = getEnvValue(["X_API_BEARER_TOKEN", "TWITTER_BEARER_TOKEN"]);
-  if (!token) return { posts: [], message: "X API credentials missing" };
-  try {
-    const params = new URLSearchParams({
-      query: buildXQuery(patient),
-      max_results: "20",
-      "tweet.fields": "created_at,lang",
-    });
-    const response = await fetch(`https://api.twitter.com/2/tweets/search/recent?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!response.ok) throw new Error(`X API ${response.status}`);
-    const json = (await response.json()) as { data?: Array<{ id: string; text: string; lang?: string }> };
-    return {
-      posts: (json.data ?? [])
-        .filter((post) => !post.lang || post.lang === "en")
-        .map((post) => ({ id: post.id, text: sanitizePost(post.text), source: "x" as const }))
-        .filter((post) => post.text.length > 20),
-    };
-  } catch (error) {
-    return { posts: [], message: `X recent search unavailable: ${safeError(error)}` };
-  }
+async function searchViaClawLocalizer(patient: PatientProfile): Promise<{ posts: PatientVoicePost[]; message?: string }> {
+  const links = await discoverXStatusLinks(patient);
+  if (!links.length) return { posts: [], message: "No candidate X status links found for Claw localizer hydration" };
+  const settled = await Promise.allSettled(links.slice(0, 8).map(fetchViaLocalizer));
+  const posts = settled
+    .filter((item): item is PromiseFulfilledResult<PatientVoicePost | undefined> => item.status === "fulfilled")
+    .map((item) => item.value)
+    .filter((post): post is PatientVoicePost => Boolean(post))
+    .filter((post) => isRelevantVoiceText(post.text));
+  return {
+    posts,
+    message: `Claw localizer hydrated ${posts.length}/${links.slice(0, 8).length} X posts through its configured X API`,
+  };
+}
+
+async function discoverXStatusLinks(patient: PatientProfile): Promise<string[]> {
+  const token = getEnvValue(["BRAVE_API_KEY"]);
+  if (!token) return [];
+  const queries = [
+    `site:x.com clinical trial patient travel biopsy reimbursement ${patient.biomarkers[0] ?? "cancer"}`,
+    `site:x.com cancer clinical trial biopsy travel caregiver screening`,
+    `site:x.com lung cancer clinical trial infusion fatigue caregiver`,
+    `site:x.com EGFR clinical trial lung cancer`,
+  ];
+  const results = await Promise.allSettled(queries.map((query) => braveSearch(query, token)));
+  return [...new Set(results.flatMap((result) => result.status === "fulfilled" ? result.value : []))];
+}
+
+async function braveSearch(query: string, token: string): Promise<string[]> {
+  const params = new URLSearchParams({ q: query, count: "10", search_lang: "en", country: "us" });
+  const response = await fetch(`https://api.search.brave.com/res/v1/web/search?${params.toString()}`, {
+    headers: { Accept: "application/json", "X-Subscription-Token": token },
+  });
+  if (!response.ok) return [];
+  const json = (await response.json()) as { web?: { results?: Array<{ url?: string }> } };
+  return (json.web?.results ?? []).flatMap((result) => {
+    const url = result.url ?? "";
+    const id = url.match(/(?:x|twitter)\.com\/[^/]+\/status\/(\d+)/i)?.[1];
+    return id ? [`https://x.com/i/status/${id}`] : [];
+  });
+}
+
+async function fetchViaLocalizer(link: string): Promise<PatientVoicePost | undefined> {
+  const base = getEnvValue(["XLOCALIZER_API_BASE", "CLAWLOCALIZER_API_BASE"]) ?? "http://127.0.0.1:4188";
+  const response = await fetch(`${base.replace(/\/$/, "")}/v1/render`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ link, target_language: "en", render_image: false }),
+  });
+  if (!response.ok) return undefined;
+  const json = (await response.json()) as { source_post_id?: string; original_text?: string };
+  const text = sanitizePost(json.original_text ?? "");
+  if (text.length < 25) return undefined;
+  return { id: json.source_post_id ?? link, text, source: "x" };
 }
 
 async function searchPublicWeb(patient: PatientProfile): Promise<{ posts: PatientVoicePost[] }> {
@@ -59,7 +90,11 @@ async function searchPublicWeb(patient: PatientProfile): Promise<{ posts: Patien
   if (!token) return { posts: [] };
   try {
     const params = new URLSearchParams({
-      q: buildWebQuery(patient),
+      q: [
+        "site:x.com OR site:reddit.com",
+        patient.biomarkers[0] ?? "EGFR exon 20",
+        "clinical trial biopsy travel reimbursement infusion fatigue caregiver screening",
+      ].join(" "),
       count: "10",
       search_lang: "en",
       country: "us",
@@ -67,39 +102,16 @@ async function searchPublicWeb(patient: PatientProfile): Promise<{ posts: Patien
     const response = await fetch(`https://api.search.brave.com/res/v1/web/search?${params.toString()}`, {
       headers: { Accept: "application/json", "X-Subscription-Token": token },
     });
-    if (!response.ok) throw new Error(`Brave Search ${response.status}`);
+    if (!response.ok) throw new Error("public web search failed");
     const json = (await response.json()) as { web?: { results?: Array<{ title?: string; description?: string }> } };
     return {
       posts: (json.web?.results ?? [])
-        .map((result, index) => ({
-          id: `web-${index}`,
-          text: sanitizePost(`${result.title ?? ""}. ${result.description ?? ""}`),
-          source: "web" as const,
-        }))
+        .map((result, index) => ({ id: `web-${index}`, text: sanitizePost(`${result.title ?? ""}. ${result.description ?? ""}`), source: "web" as const }))
         .filter((post) => post.text.length > 30),
     };
   } catch {
     return { posts: [] };
   }
-}
-
-function buildXQuery(patient: PatientProfile): string {
-  return [
-    patient.biomarkers[0] ?? "EGFR",
-    "clinical trial",
-    "(biopsy OR travel OR reimbursement OR infusion OR fatigue OR caregiver OR screening)",
-    "-is:retweet",
-    "lang:en",
-  ].join(" ");
-}
-
-function buildWebQuery(patient: PatientProfile): string {
-  return [
-    "site:x.com OR site:reddit.com",
-    patient.biomarkers[0] ?? "EGFR exon 20",
-    "clinical trial",
-    "biopsy travel reimbursement infusion fatigue caregiver screening",
-  ].join(" ");
 }
 
 function sanitizePost(text: string): string {
@@ -112,11 +124,16 @@ function sanitizePost(text: string): string {
     .trim();
 }
 
+function isRelevantVoiceText(text: string): boolean {
+  return /trial|cancer|lung|egfr|biopsy|travel|caregiver|screening|infusion|fatigue|reimburse/i.test(text);
+}
+
 function clusterVoice(posts: PatientVoicePost[]): PatientVoiceTheme[] {
   const buckets = [
     makeTheme(posts, "Biopsy and tissue uncertainty", /biopsy|tissue|specimen|pathology/i, "Will screening require a fresh biopsy, or can prior tissue be used?"),
     makeTheme(posts, "Travel and reimbursement burden", /travel|parking|reimbursement|lodging|caregiver/i, "What travel, parking, lodging, or caregiver support is available?"),
     makeTheme(posts, "Visit schedule and fatigue", /visit|infusion|fatigue|screening|schedule/i, "What is the expected first-month schedule for visits, labs, scans, and infusions?"),
+    makeTheme(posts, "Trial awareness and pre-screening", /trial|screening|enroll|recruit/i, "What pre-screening records should be sent before the patient commits time to a visit?"),
   ].filter((theme): theme is PatientVoiceTheme => Boolean(theme));
   return buckets.length ? buckets : seedVoiceThemes;
 }
@@ -133,12 +150,24 @@ function makeTheme(
     theme,
     sentiment: "mixed",
     signalStrength: count > 4 ? "high" : count > 1 ? "medium" : "low",
-    summary: "Live public snippets surfaced this as an unverified patient-experience concern to ask about, not as medical evidence.",
+    summary: "X API hydrated posts and public snippets surfaced this as an unverified patient-experience signal to ask about, not medical evidence.",
     coordinatorQuestion,
     sourceCount: count,
   };
 }
 
-function safeError(error: unknown): string {
-  return error instanceof Error ? error.message : "unknown error";
+function dedupePosts(posts: PatientVoicePost[]): PatientVoicePost[] {
+  const seen = new Set<string>();
+  return posts.filter((post) => {
+    const key = `${post.source}:${post.id}:${post.text.slice(0, 80)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function buildMessage(xMessage: string | undefined, webCount: number): string {
+  return [xMessage, webCount ? `added ${webCount} public web snippets for burden coverage` : undefined]
+    .filter(Boolean)
+    .join("; ");
 }
