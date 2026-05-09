@@ -175,21 +175,31 @@ function dedupePosts(posts: PatientVoicePost[]): PatientVoicePost[] {
 
 function buildVoiceQueries(patient: PatientProfile): string[] {
   const condition = compactCondition(patient.possibleConditionContext ?? patient.diagnosis);
-  const symptoms = (patient.symptoms?.length ? patient.symptoms : patient.biomarkers).slice(0, 5).join(" ");
+  const symptoms = (patient.symptoms?.length ? patient.symptoms : patient.biomarkers).slice(0, 5);
+  const conditionTerm = quoteIfNeeded(condition);
   return unique([
-    `${condition} ${symptoms} clinical trial patient experience`,
-    `${condition} ${symptoms} travel reimbursement visit burden`,
-    `${condition} ${symptoms} symptoms research study`,
-    `${condition} ${symptoms} patient reported outcomes`,
+    ...symptoms.flatMap((symptom) => [
+      `${conditionTerm} ${quoteIfNeeded(symptom)}`,
+      `${conditionTerm} ${quoteIfNeeded(symptom)} clinical trial`,
+    ]),
+    `${conditionTerm} clinical trial`,
+    `${conditionTerm} research study`,
+    `${conditionTerm} travel reimbursement visits`,
+    `${conditionTerm} patient reported outcomes`,
   ]);
 }
 
 function formatXQuery(query: string): string {
-  return `${query.replace(/["']/g, " ").slice(0, 220)} -is:retweet lang:en`;
+  return `${query.replace(/'/g, " ").replace(/\s+/g, " ").trim().slice(0, 220)} -is:retweet lang:en`;
 }
 
 function compactCondition(condition: string): string {
   return condition.split(/\bwith\b|[,;(/]/i)[0]?.trim() || condition;
+}
+
+function quoteIfNeeded(value: string): string {
+  const clean = value.replace(/["']/g, " ").replace(/\s+/g, " ").trim();
+  return clean.includes(" ") ? `"${clean}"` : clean;
 }
 
 function unique(values: string[]): string[] {
