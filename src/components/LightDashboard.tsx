@@ -5,6 +5,7 @@ import { seedPatient } from "@/lib/demo/seedPatient";
 import type { PatientProfile, PatientProfileInput, TrialIntelligenceState } from "@/lib/types";
 import { AgentEventStream } from "./AgentEventStream";
 import { ArtifactPanel } from "./ArtifactPanel";
+import { DoctorConversationDemo, type ConversationPayload } from "./DoctorConversationDemo";
 import { EligibilityPanel } from "./EligibilityPanel";
 import { PatientProfileForm, type PatientFormState } from "./PatientProfileForm";
 import { PatientVoicePanel } from "./PatientVoicePanel";
@@ -15,6 +16,7 @@ import { Empty, List, Panel } from "./DisplayPrimitives";
 import styles from "./LightDashboard.module.css";
 
 export function LightDashboard() {
+  const [mode, setMode] = useState<"profile" | "conversation">("conversation");
   const [form, setForm] = useState<PatientFormState>(toForm(seedPatient));
   const [run, setRun] = useState<TrialIntelligenceState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +55,20 @@ export function LightDashboard() {
     setRun((await response.json()) as TrialIntelligenceState);
   }
 
+  async function processConversation(payload: ConversationPayload) {
+    setError(null);
+    const response = await fetch("/api/runs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      setError("Conversation run could not be started.");
+      return;
+    }
+    setRun((await response.json()) as TrialIntelligenceState);
+  }
+
   const questions = [
     ...(run?.burden?.coordinatorQuestions ?? []),
     ...((run?.patientVoice ?? []).map((theme) => theme.coordinatorQuestion)),
@@ -76,15 +92,31 @@ export function LightDashboard() {
 
       <SafetyBanner />
 
-      <section className={styles.topGrid}>
-        <PatientProfileForm
-          form={form}
-          isProcessing={isProcessing}
-          onChange={setForm}
-          onSubmit={processIntelligence}
-        />
-        <AgentEventStream events={run?.events ?? []} status={run?.status ?? "created"} />
-      </section>
+      <div className={styles.modeTabs} role="tablist" aria-label="Demo mode">
+        <button className={mode === "conversation" ? styles.activeTab : ""} type="button" onClick={() => setMode("conversation")}>
+          Live Doctor Conversation
+        </button>
+        <button className={mode === "profile" ? styles.activeTab : ""} type="button" onClick={() => setMode("profile")}>
+          Structured Patient Profile
+        </button>
+      </div>
+
+      {mode === "conversation" ? (
+        <section className={styles.demoGrid}>
+          <DoctorConversationDemo run={run} isProcessing={isProcessing} onProcess={processConversation} />
+          <AgentEventStream events={run?.events ?? []} status={run?.status ?? "created"} />
+        </section>
+      ) : (
+        <section className={styles.topGrid}>
+          <PatientProfileForm
+            form={form}
+            isProcessing={isProcessing}
+            onChange={setForm}
+            onSubmit={processIntelligence}
+          />
+          <AgentEventStream events={run?.events ?? []} status={run?.status ?? "created"} />
+        </section>
+      )}
 
       {error ? <div className={`${styles.banner} panel`}>{error}</div> : null}
 

@@ -1,4 +1,5 @@
 export type { GeneratedArtifact, GeneratedArtifactKind, BurdenAnalysis } from "./artifact";
+export type { ConversationSummary, ConversationTurn, ExtractedConversationProfile } from "./conversation";
 export type { PatientProfile, PatientProfileInput } from "./patient";
 export type { ResearchPaper, ResearchSummary } from "./research";
 export type {

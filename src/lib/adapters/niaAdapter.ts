@@ -1,5 +1,6 @@
 import { getEnvValue } from "@/lib/env";
-import type { PatientProfile, ResearchPaper, TrialCard } from "@/lib/types";
+import { synthesizeVoiceFromSearchContext } from "@/lib/llm/patientVoiceSynthesis";
+import type { PatientProfile, PatientVoiceTheme, ResearchPaper, SourceMode, TrialCard } from "@/lib/types";
 
 export async function searchNiaContext(
   patient: PatientProfile,
@@ -33,9 +34,39 @@ export async function searchNiaContext(
   }
 }
 
+export async function searchNiaPatientVoice(
+  patient: PatientProfile,
+): Promise<{ themes: PatientVoiceTheme[]; sourceMode: SourceMode; message?: string }> {
+  const token = getEnvValue(["NIA_API_KEY", "NIA_TOKEN"]);
+  if (!token) return { themes: [], sourceMode: "mixed", message: "Nia unavailable for patient voice context" };
+  try {
+    const condition = compactCondition(patient.possibleConditionContext ?? patient.diagnosis);
+    const symptoms = (patient.symptoms ?? []).slice(0, 5).join(" ");
+    const query = [
+      condition,
+      symptoms,
+      "patient experience public posts clinical trial symptoms burden reimbursement visits objective measures",
+    ].join(" ");
+    const json = await fetchNia(token, query);
+    const context = JSON.stringify(json).slice(0, 7000);
+    const synthesis = await synthesizeVoiceFromSearchContext(patient, context, "Nia search/context retrieval");
+    return {
+      themes: synthesis.themes,
+      sourceMode: synthesis.sourceMode,
+      message: `Nia retrieved patient-experience search context for ${synthesis.themes.length} aggregate themes`,
+    };
+  } catch {
+    return { themes: [], sourceMode: "mixed", message: "Nia patient voice context request failed" };
+  }
+}
+
+function compactCondition(condition: string): string {
+  return condition.split(/\bwith\b|[,;(/]/i)[0]?.trim() || condition;
+}
+
 async function fetchNia(token: string, query: string): Promise<Record<string, unknown>> {
   const base = getEnvValue(["NIA_BASE_URL"]) ?? "https://apigcp.trynia.ai/v2";
-  const response = await fetch(`${base.replace(/\/$/, "")}/search`, {
+  const response = await fetchWithTimeout(`${base.replace(/\/$/, "")}/search`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -48,7 +79,7 @@ async function fetchNia(token: string, query: string): Promise<Record<string, un
       fast_mode: true,
       max_tokens: 900,
     }),
-  });
+  }, 8000);
   if (!response.ok) throw new Error("Nia search failed");
   return response.json() as Promise<Record<string, unknown>>;
 }
@@ -58,9 +89,9 @@ function buildQuery(patient: PatientProfile, trials: TrialCard[]): string {
     .flatMap((trial) => trial.title.match(/[A-Z][A-Za-z0-9-]{4,}/g) ?? [])
     .slice(0, 4);
   return [
-    patient.diagnosis,
-    patient.biomarkers.join(" "),
-    "clinical trial research paper protocol biopsy reimbursement eligibility",
+    patient.possibleConditionContext ?? patient.diagnosis,
+    [...(patient.symptoms ?? []), ...patient.biomarkers].join(" "),
+    "clinical trial research paper protocol patient experience eligibility outcomes biomarkers",
     ...interventions,
   ].join(" ");
 }
@@ -117,5 +148,15 @@ function titleFromUrl(url: string | undefined): string | undefined {
     return parsed.hostname.replace(/^www\./, "");
   } catch {
     return url;
+  }
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
   }
 }

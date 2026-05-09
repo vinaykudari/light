@@ -1,9 +1,8 @@
 import crypto from "node:crypto";
 import { getEnvValue } from "@/lib/env";
-import { seedClinicMemory } from "@/lib/demo/seedClinicMemory";
-import type { SourceMode } from "@/lib/types";
+import type { PatientProfile, SourceMode } from "@/lib/types";
 
-export async function loadClinicMemory(): Promise<{
+export async function loadClinicMemory(patient?: PatientProfile): Promise<{
   memories: string[];
   sourceMode: SourceMode;
   message?: string;
@@ -11,13 +10,13 @@ export async function loadClinicMemory(): Promise<{
   const auth = buildAuth();
   if (!auth) {
     return {
-      memories: seedClinicMemory,
-      sourceMode: "mock",
-      message: "Hyperspell unavailable, using seeded clinic memory",
+      memories: [],
+      sourceMode: "mixed",
+      message: "Hyperspell unavailable; no clinic memory was recalled",
     };
   }
   try {
-    const json = await queryMemory(auth);
+    const json = await queryMemory(auth, patient);
     const memories = mapMemories(json);
     if (memories.length) {
       return {
@@ -27,15 +26,15 @@ export async function loadClinicMemory(): Promise<{
       };
     }
     return {
-      memories: seedClinicMemory,
-      sourceMode: "mixed",
-      message: "Hyperspell connected but no matching clinic memory is indexed yet, using seeded clinic memory",
+      memories: [],
+      sourceMode: "real",
+      message: "Hyperspell connected but no matching clinic memory is indexed yet",
     };
   } catch {
     return {
-      memories: seedClinicMemory,
-      sourceMode: "mock",
-      message: "Hyperspell request failed, using seeded clinic memory",
+      memories: [],
+      sourceMode: "mixed",
+      message: "Hyperspell request failed; no clinic memory was recalled",
     };
   }
 }
@@ -46,7 +45,7 @@ type HyperspellAuth = {
   usesUserJwt: boolean;
 };
 
-async function queryMemory(auth: HyperspellAuth): Promise<Record<string, unknown>> {
+async function queryMemory(auth: HyperspellAuth, patient?: PatientProfile): Promise<Record<string, unknown>> {
   const base = getEnvValue(["HYPERSPELL_BASE_URL"]) ?? "https://api.hyperspell.com";
   const headers: Record<string, string> = {
     Authorization: `Bearer ${auth.token}`,
@@ -57,13 +56,23 @@ async function queryMemory(auth: HyperspellAuth): Promise<Record<string, unknown
     method: "POST",
     headers,
     body: JSON.stringify({
-      query: "Light clinical trial coordinator memory for EGFR exon 20 NSCLC brain metastases biopsy reimbursement",
+      query: buildMemoryQuery(patient),
       answer: true,
       options: { max_results: 5 },
     }),
   });
   if (!response.ok) throw new Error("Hyperspell query failed");
   return response.json() as Promise<Record<string, unknown>>;
+}
+
+function buildMemoryQuery(patient?: PatientProfile): string {
+  if (!patient) return "Light clinical trial coordinator memory screening visit burden reimbursement";
+  return [
+    "Light clinical trial coordinator memory",
+    patient.possibleConditionContext ?? patient.diagnosis,
+    ...(patient.symptoms ?? []),
+    ...patient.missingDataHints.slice(0, 5),
+  ].join(" ");
 }
 
 function buildAuth(): HyperspellAuth | undefined {

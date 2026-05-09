@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRun, listRuns, runNow, startRun } from "@/lib/runs/localRunStore";
-import type { PatientProfileInput } from "@/lib/types";
+import type { ConversationTurn, PatientProfileInput } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
   const runId = request.nextUrl.searchParams.get("id");
@@ -14,11 +14,14 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const body = (await request.json().catch(() => ({}))) as { patient?: PatientProfileInput };
+  const body = (await request.json().catch(() => ({}))) as {
+    patient?: PatientProfileInput;
+    conversationTranscript?: ConversationTurn[];
+  };
   if (process.env.VERCEL) {
-    const run = await runNow(body.patient ?? {});
+    const run = await runNow(body.patient ?? {}, body.conversationTranscript);
     return NextResponse.json(run);
   }
-  const run = startRun(body.patient ?? {});
+  const run = startRun(body.patient ?? {}, body.conversationTranscript);
   return NextResponse.json(run, { status: 202 });
 }

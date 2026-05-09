@@ -1,4 +1,5 @@
 import type { GeneratedArtifact, BurdenAnalysis } from "./artifact";
+import type { ConversationSummary } from "./conversation";
 import type { PatientProfile } from "./patient";
 import type { ResearchSummary } from "./research";
 import type { TrialCard, EligibilityRow } from "./trial";
@@ -6,6 +7,7 @@ import type { PatientVoiceTheme } from "./voice";
 
 export type AgentName =
   | "system"
+  | "conversation"
   | "trial"
   | "research"
   | "patient_voice"
@@ -46,6 +48,7 @@ export type TrialIntelligenceState = {
   status: RunStatus;
   sourceMode: SourceMode;
   patient: PatientProfile;
+  conversation?: ConversationSummary;
   capabilities: CapabilityReport;
   events: AgentEvent[];
   trials: TrialCard[];

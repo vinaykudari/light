@@ -1,4 +1,6 @@
+import { applyMedicalSafety } from "@/lib/safety/medicalSafety";
 import { buildArtifacts } from "@/lib/synthesis/buildArtifacts";
+import { buildArtifactsWithLlm } from "@/lib/llm/artifactSynthesis";
 import { generateText } from "@/lib/adapters/llmAdapter";
 import type {
   BurdenAnalysis,
@@ -25,6 +27,12 @@ export async function runSynthesisAgent(
   await context.emit("synthesis", "running", "Generating clinician checklist", "Missing data and source limitations are being organized for review.");
   await context.emit("synthesis", "running", "Generating coordinator draft", "Coordinator outreach is framed as pre-screening guidance only.");
   const artifacts = buildArtifacts(context.runId, context.patient, input);
+  if (context.patient.symptoms?.length) {
+    const llmArtifacts = await buildArtifactsWithLlm(context.runId, context.patient, input);
+    await context.emit("synthesis", "running", "LLM briefing generated from live sources", "The briefing is assembled from conversation extraction, official trial records, research retrieval, patient voice themes, eligibility gaps, and burden questions.");
+    await context.emit("synthesis", "completed", "Final synthesis complete", `${artifacts.length} generated artifacts are ready.`);
+    return llmArtifacts.map((artifact) => ({ ...artifact, content: applyMedicalSafety(artifact.content) }));
+  }
   const llm = await generateText(buildPrompt(context.patient.diagnosis, input));
   if (llm.sourceMode === "real") {
     artifacts[0] = {

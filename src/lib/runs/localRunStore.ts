@@ -1,6 +1,6 @@
 import { seedPatient } from "@/lib/demo/seedPatient";
 import { capabilityMode, getCapabilityReport } from "@/lib/env";
-import type { PatientProfile, PatientProfileInput, TrialIntelligenceState } from "@/lib/types";
+import type { ConversationTurn, PatientProfile, PatientProfileInput, TrialIntelligenceState } from "@/lib/types";
 import { makeRunId } from "@/lib/workflows/emitEvent";
 import { runTrialIntelligence } from "@/lib/workflows/runTrialIntelligence";
 
@@ -14,7 +14,7 @@ export function getRun(runId: string): TrialIntelligenceState | undefined {
   return runs.get(runId);
 }
 
-export function startRun(input: Partial<PatientProfileInput>): TrialIntelligenceState {
+export function startRun(input: Partial<PatientProfileInput>, conversationTranscript?: ConversationTurn[]): TrialIntelligenceState {
   const patient = normalizePatient(input);
   const created = new Date().toISOString();
   const capabilities = getCapabilityReport();
@@ -35,7 +35,7 @@ export function startRun(input: Partial<PatientProfileInput>): TrialIntelligence
   runs.set(placeholder.runId, placeholder);
   void runTrialIntelligence(patient, (state) => {
     runs.set(state.runId, state);
-  }, placeholder.runId).catch((error) => {
+  }, placeholder.runId, conversationTranscript).catch((error) => {
     const failed = runs.get(placeholder.runId);
     if (failed) {
       failed.status = "failed";
@@ -46,12 +46,12 @@ export function startRun(input: Partial<PatientProfileInput>): TrialIntelligence
   return placeholder;
 }
 
-export async function runNow(input: Partial<PatientProfileInput>): Promise<TrialIntelligenceState> {
+export async function runNow(input: Partial<PatientProfileInput>, conversationTranscript?: ConversationTurn[]): Promise<TrialIntelligenceState> {
   const patient = normalizePatient(input);
   let latest: TrialIntelligenceState | undefined;
   const completed = await runTrialIntelligence(patient, (state) => {
     latest = state;
-  });
+  }, undefined, conversationTranscript);
   return latest ?? completed;
 }
 

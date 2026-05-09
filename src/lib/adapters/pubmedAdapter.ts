@@ -1,34 +1,48 @@
-import { seedResearch } from "@/lib/demo/seedResearch";
+import { synthesizeResearchWithLlm } from "@/lib/llm/researchSynthesis";
 import type { PatientProfile, ResearchPaper, ResearchSummary, SourceMode, TrialCard } from "@/lib/types";
 
 export async function searchPubMed(
   patient: PatientProfile,
   trials: TrialCard[],
 ): Promise<ResearchSummary> {
-  const query = buildQuery(patient, trials);
+  const queries = buildQueries(patient, trials);
+  const query = queries[0];
   try {
-    const ids = await fetchPubMedIds(query);
-    const fallbackQuery = buildFallbackQuery(patient);
-    const retryIds = ids.length ? ids : await fetchPubMedIds(fallbackQuery);
-    const usedQuery = ids.length ? query : fallbackQuery;
+    const { ids: retryIds, query: usedQuery } = await firstMatchingPubMedQuery(queries);
     const papers = retryIds.length ? await fetchPubMedSummaries(retryIds) : [];
     const selected = papers.slice(0, 5);
-    if (selected.length === 0) return buildSummary(query, seedResearch, "mock");
-    return buildSummary(usedQuery, selected, "real");
+    return buildSummary(usedQuery, selected, "real", patient);
   } catch {
-    return buildSummary(query, seedResearch, "mock");
+    return buildSummary(query, [], "mixed", patient);
   }
 }
 
-function buildQuery(patient: PatientProfile, trials: TrialCard[]): string {
+function buildQueries(patient: PatientProfile, trials: TrialCard[]): string[] {
+  if (hasSymptoms(patient)) {
+    const condition = compactCondition(patient.possibleConditionContext ?? patient.diagnosis);
+    const symptoms = (patient.symptoms ?? []).slice(0, 5);
+    return unique([
+      [condition, ...symptoms.slice(0, 2)].join(" "),
+      condition,
+      [patient.possibleConditionContext ?? patient.diagnosis, ...symptoms.slice(0, 3)].join(" "),
+      symptoms.slice(0, 4).join(" "),
+    ]);
+  }
   const interventions = trials
     .flatMap((trial) => trial.title.match(/[A-Z]{2,}[0-9A-Z-]*/g) ?? [])
     .slice(0, 2);
-  return [`"${patient.biomarkers[0] ?? patient.diagnosis}"`, "NSCLC", ...interventions].join(" ");
+  return unique([
+    [`"${patient.biomarkers[0] ?? patient.diagnosis}"`, "NSCLC", ...interventions].join(" "),
+    [`"${patient.biomarkers[0] ?? patient.diagnosis}"`, "clinical trial"].join(" "),
+  ]);
 }
 
-function buildFallbackQuery(patient: PatientProfile): string {
-  return [`"${patient.biomarkers[0] ?? patient.diagnosis}"`, "NSCLC", "clinical trial"].join(" ");
+async function firstMatchingPubMedQuery(queries: string[]): Promise<{ ids: string[]; query: string }> {
+  for (const query of queries) {
+    const ids = await fetchPubMedIds(query);
+    if (ids.length) return { ids, query };
+  }
+  return { ids: [], query: queries[0] ?? "" };
 }
 
 async function fetchPubMedIds(query: string): Promise<string[]> {
@@ -39,7 +53,7 @@ async function fetchPubMedIds(query: string): Promise<string[]> {
     retmax: "8",
     sort: "relevance",
   });
-  const response = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?${params.toString()}`);
+  const response = await fetchWithTimeout(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?${params.toString()}`);
   if (!response.ok) throw new Error("PubMed search failed");
   const json = (await response.json()) as { esearchresult?: { idlist?: string[] } };
   return json.esearchresult?.idlist ?? [];
@@ -51,7 +65,7 @@ async function fetchPubMedSummaries(ids: string[]): Promise<ResearchPaper[]> {
     id: ids.join(","),
     retmode: "json",
   });
-  const response = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?${params.toString()}`);
+  const response = await fetchWithTimeout(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?${params.toString()}`);
   if (!response.ok) throw new Error("PubMed summary failed");
   const json = (await response.json()) as { result?: Record<string, PubMedDoc | string[]> };
   return ids.flatMap((id) => {
@@ -71,7 +85,10 @@ async function fetchPubMedSummaries(ids: string[]): Promise<ResearchPaper[]> {
   });
 }
 
-function buildSummary(query: string, papers: ResearchPaper[], sourceMode: SourceMode): ResearchSummary {
+function buildSummary(query: string, papers: ResearchPaper[], sourceMode: SourceMode, patient?: PatientProfile): Promise<ResearchSummary> | ResearchSummary {
+  if (patient && hasSymptoms(patient)) {
+    return synthesizeResearchWithLlm(patient, query, papers, sourceMode);
+  }
   return {
     query,
     papersFound: papers.length,
@@ -99,3 +116,25 @@ type PubMedDoc = {
   pubdate?: string;
   authors?: Array<{ name?: string }>;
 };
+
+function hasSymptoms(patient: PatientProfile): boolean {
+  return Boolean(patient.symptoms?.length || patient.possibleConditionContext || patient.patientGoal);
+}
+
+function compactCondition(condition: string): string {
+  return condition.split(/\bwith\b|[,;(/]/i)[0]?.trim() || condition;
+}
+
+function unique(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.replace(/\s+/g, " ").trim()).filter(Boolean))].slice(0, 5);
+}
+
+async function fetchWithTimeout(url: string, timeoutMs = 8000): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}

@@ -1,4 +1,5 @@
 import { runBurdenAgent } from "@/lib/agents/burdenAgent";
+import { runConversationAgent } from "@/lib/agents/conversationAgent";
 import { runEligibilityAgent } from "@/lib/agents/eligibilityAgent";
 import { runPatientVoiceAgent } from "@/lib/agents/patientVoiceAgent";
 import { runResearchAgent } from "@/lib/agents/researchAgent";
@@ -11,6 +12,7 @@ import type {
   AgentEvent,
   AgentName,
   EventStatus,
+  ConversationTurn,
   PatientProfile,
   SourceMode,
   TrialIntelligenceState,
@@ -23,6 +25,7 @@ export async function runTrialIntelligence(
   patient: PatientProfile,
   onUpdate?: RunUpdate,
   runIdOverride?: string,
+  conversationTranscript?: ConversationTurn[],
 ): Promise<TrialIntelligenceState> {
   const runId = runIdOverride ?? makeRunId();
   const now = new Date().toISOString();
@@ -58,12 +61,17 @@ export async function runTrialIntelligence(
   };
 
   await emit("system", "running", "Light started trial intelligence run", "Synthetic patient profile stored for education and referral preparation.");
+  const conversation = await runConversationAgent({ runId, patient: state.patient, emit }, conversationTranscript);
+  state.patient = conversation.patient;
+  state.conversation = conversation.summary;
+  await update();
   const result = await runWithTensorlakeOrLocal({
     runLocal: () => runLocalLightWorkflow(state, emit, update),
     payload: {
       kind: "light.trial_intelligence.run",
       runId,
-      patient,
+      patient: state.patient,
+      conversationTranscript,
       source: "light.hackerpod.dev",
     },
   });
