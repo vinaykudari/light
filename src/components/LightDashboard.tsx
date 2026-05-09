@@ -9,9 +9,9 @@ import type {
 } from "@/lib/types";
 import { AgentEventStream } from "./AgentEventStream";
 import { ArtifactPanel } from "./ArtifactPanel";
-import { DoctorConversationDemo, type ConversationPayload } from "./DoctorConversationDemo";
+import type { ConversationPayload } from "./DoctorConversationDemo";
 import { EligibilityPanel } from "./EligibilityPanel";
-import { PatientProfileForm, type PatientFormState } from "./PatientProfileForm";
+import type { PatientFormState } from "./PatientProfileForm";
 import { PatientVoicePanel } from "./PatientVoicePanel";
 import { ResearchPanel } from "./ResearchPanel";
 import { Empty } from "./DisplayPrimitives";
@@ -106,6 +106,18 @@ type Step = "landing" | "intake" | "conversation" | "processing" | "dashboard";
 type ViewMode = "patient" | "technical";
 type PatientTab = "trials" | "community" | "prepare" | "feed";
 type TechTab = "agents" | "research" | "voice" | "eligibility" | "artifacts";
+type TrialEnrichment = {
+  briefSummary?: string;
+  dosing?: string;
+  sponsor?: string;
+  sponsorClass?: string;
+  enrollmentCount?: number;
+  allocation?: string;
+  minAge?: string;
+  maxAge?: string;
+  completionDate?: string;
+  startDate?: string;
+};
 
 // Remote backend — CORS is open, so localhost UI can call directly
 const API = "https://light.hackerpod.dev";
@@ -113,7 +125,7 @@ const API = "https://light.hackerpod.dev";
 // ─── Component ────────────────────────────────────────────────────────────────
 export function LightDashboard() {
   // ── Existing state + functions (DO NOT CHANGE) ───────────────────────────────
-  const [form, setForm] = useState<PatientFormState>(toForm(seedPatient));
+  const [form] = useState<PatientFormState>(toForm(seedPatient));
   const [run, setRun] = useState<TrialIntelligenceState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isProcessing = run?.status === "created" || run?.status === "running";
@@ -173,7 +185,7 @@ export function LightDashboard() {
   const [listening, setListening]     = useState(false);
   const [emailText, setEmailText]     = useState("");
   const [emailSent, setEmailSent]     = useState(false);
-  const [trialEnrichment, setTrialEnrichment] = useState<Record<string, any>>({});
+  const [trialEnrichment, setTrialEnrichment] = useState<Record<string, TrialEnrichment>>({});
   const [copied, setCopied]           = useState<string | null>(null);
   const [messageSent, setMessageSent] = useState<Set<string>>(new Set());
   const [messageTarget, setMessageTarget] = useState<string | null>(null);
@@ -741,8 +753,8 @@ export function LightDashboard() {
               {viewMode === "patient" && patientTab === "community" && (
                 <div style={{ maxWidth:"720px", display:"grid", gap:"24px" }}>
                   <div>
-                    <h2 style={{ fontFamily:"'Fraunces',serif", fontSize:"20px", fontWeight:600, color:"#0D1117", marginBottom:"4px" }}>What patients are saying</h2>
-                    <p style={{ fontSize:"12px", color:"#9CA3AF", marginBottom:"14px" }}>Synthesised from public X posts, Smart Patients, and Reddit by Light's agents</p>
+                    <h2 style={{ fontFamily:"'Fraunces',serif", fontSize:"20px", fontWeight:600, color:"#0D1117", marginBottom:"4px" }}>Community signals</h2>
+                    <p style={{ fontSize:"12px", color:"#9CA3AF", marginBottom:"14px" }}>Public X/web patient signals, grouped into practical questions for the care team.</p>
                     {!(run?.patientVoice?.length) && <Empty text="Patient voice themes will appear after processing." />}
                     <div style={{ display:"grid", gap:"12px" }}>
                       {(run?.patientVoice ?? []).map((theme) => {
@@ -762,11 +774,50 @@ export function LightDashboard() {
                               <span style={{ fontSize:"11px", fontWeight:700, color:"#2563EB", textTransform:"uppercase", letterSpacing:"0.06em" }}>Ask your coordinator: </span>
                               <span style={{ fontSize:"12px", color:"#374151" }}>{theme.coordinatorQuestion}</span>
                             </div>
+                            {!!theme.sources?.length && (
+                              <div style={{ display:"flex", flexWrap:"wrap", gap:"8px", marginTop:"12px" }}>
+                                {theme.sources.slice(0,3).map((source) => (
+                                  source.url ? (
+                                    <a key={`${source.source}-${source.url}`} href={source.url} target="_blank" rel="noreferrer"
+                                      style={{ fontSize:"11px", fontWeight:700, color:"#2563EB", background:"#EFF6FF", border:"1px solid #DBEAFE", borderRadius:"999px", padding:"5px 9px", textDecoration:"none" }}>
+                                      {source.source.toUpperCase()} source
+                                    </a>
+                                  ) : null
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
                     </div>
                   </div>
+                  {!!run?.expertSources?.length && (
+                    <>
+                      <div style={{ height:"1px", background:"#F1F5F9" }}/>
+                      <div>
+                        <h2 style={{ fontFamily:"'Fraunces',serif", fontSize:"20px", fontWeight:600, color:"#0D1117", marginBottom:"4px" }}>Expert context</h2>
+                        <p style={{ fontSize:"12px", color:"#9CA3AF", marginBottom:"14px" }}>Public clinician, researcher, and institution-facing context retrieved from X.com and web sources.</p>
+                        <div style={{ display:"grid", gap:"10px" }}>
+                          {run.expertSources.slice(0,6).map((source) => (
+                            <a key={`${source.source}-${source.url ?? source.title}`} href={source.url ?? "#"} target="_blank" rel="noreferrer"
+                              className="panel" style={{ display:"flex", alignItems:"flex-start", gap:"12px", padding:"14px", textDecoration:"none" }}>
+                              <div style={{ width:34, height:34, borderRadius:10, flexShrink:0, background:"#EFF6FF", display:"flex", alignItems:"center", justifyContent:"center", color:"#2563EB", fontWeight:800, fontSize:"11px" }}>
+                                {source.source === "x" ? "X" : "WEB"}
+                              </div>
+                              <div style={{ minWidth:0 }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"4px" }}>
+                                  <span style={{ fontSize:"10px", fontWeight:800, color:"#2563EB", textTransform:"uppercase" }}>Expert context</span>
+                                  <span style={{ fontSize:"10px", color:"#9CA3AF", textTransform:"uppercase" }}>{source.source}</span>
+                                </div>
+                                <div style={{ fontWeight:700, fontSize:"13px", color:"#0D1117", marginBottom:"4px" }}>{source.title}</div>
+                                {source.snippet && <p style={{ fontSize:"12px", color:"#6B7280", lineHeight:1.5 }}>{source.snippet}</p>}
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
                   <div style={{ height:"1px", background:"#F1F5F9" }}/>
                   <div>
                     <h2 style={{ fontFamily:"'Fraunces',serif", fontSize:"20px", fontWeight:600, color:"#0D1117", marginBottom:"4px" }}>Connect with someone</h2>
@@ -902,7 +953,7 @@ export function LightDashboard() {
                   </div>
                   <div className={styles.feedList}>
                     {FEED_ITEMS.map(item => {
-                      const a = item as any;
+                      const a = item as Record<string, string | number | undefined>;
                       const isPubmed = item.type === "pubmed";
                       const isTrial  = item.type === "trial";
                       const isForum  = item.type === "forum";
@@ -914,7 +965,7 @@ export function LightDashboard() {
                       return (
                         <a
                           key={item.id}
-                          href={a.url}
+                          href={String(a.url ?? "#")}
                           target="_blank"
                           rel="noreferrer"
                           style={{ textDecoration: "none", display: "block" }}
@@ -982,7 +1033,7 @@ export function LightDashboard() {
                 <div className={styles.techPanel}>
                   {techTab==="agents"      && <AgentEventStream events={run?.events??[]} status={run?.status??"created"}/>}
                   {techTab==="research"    && <ResearchPanel summary={run?.research}/>}
-                  {techTab==="voice"       && <PatientVoicePanel themes={run?.patientVoice??[]}/>}
+                  {techTab==="voice"       && <PatientVoicePanel themes={run?.patientVoice??[]} expertSources={run?.expertSources??[]}/>}
                   {techTab==="eligibility" && <EligibilityPanel rows={run?.eligibility??[]}/>}
                   {techTab==="artifacts"   && <ArtifactPanel artifacts={run?.artifacts??[]}/>}
                   {/* Keep DoctorConversationDemo available in technical view */}
@@ -1054,6 +1105,12 @@ export function LightDashboard() {
                   )}
                   {(run?.patientVoice??[]).slice(0,2).map(t => (
                     <div key={t.theme} className={styles.voiceCard}><p className={styles.voiceQuote}>"{t.summary}"</p><p className={styles.voiceMeta}>{t.theme} · {t.sourceCount} reports</p></div>
+                  ))}
+                  {(run?.expertSources??[]).slice(0,2).map(s => (
+                    <a key={`${s.source}-${s.url ?? s.title}`} href={s.url ?? "#"} target="_blank" rel="noreferrer" className={styles.voiceCard} style={{ textDecoration:"none", display:"block" }}>
+                      <p className={styles.voiceQuote}>{s.snippet ?? s.title}</p>
+                      <p className={styles.voiceMeta}>Expert context · {s.source.toUpperCase()}</p>
+                    </a>
                   ))}
                 </>
               )}

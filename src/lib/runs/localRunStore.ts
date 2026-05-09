@@ -27,6 +27,7 @@ export function startRun(input: Partial<PatientProfileInput>, conversationTransc
     events: [],
     trials: [],
     patientVoice: [],
+    expertSources: [],
     eligibility: [],
     artifacts: [],
     createdAt: created,

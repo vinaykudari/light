@@ -49,5 +49,13 @@ export function collectRunSources(run: TrialIntelligenceState): NiaIndexSource[]
       }] : [],
     ),
   );
-  return [...trialSources, ...paperSources, ...voiceSources];
+  const expertSources = (run.expertSources ?? []).flatMap((source): NiaIndexSource[] =>
+    source.url ? [{
+      title: `Expert context: ${source.title}`,
+      url: source.url,
+      kind: source.source === "x" ? "x" : "web",
+      snippet: source.snippet ?? "Expert-facing public context retrieved for clinician-reviewed discussion prep.",
+    }] : [],
+  );
+  return [...trialSources, ...paperSources, ...voiceSources, ...expertSources];
 }
