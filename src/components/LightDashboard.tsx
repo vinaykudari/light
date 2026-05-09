@@ -25,44 +25,44 @@ const COMMUNITY_PROFILES = [
   { id: "p3", name: "Ray",     age: 67, diagnosis: "NSCLC · EGFR exon 19",   trial: "LAURA",      enrolled: "Nov 2024", status: "Completed · Remission", active: false, quote: "My oncologist didn't mention this trial. I found it myself. She said I was right to push.", tags: ["self-advocacy"] },
 ];
 
-// Real feed items — PubMed PMIDs verified, ClinicalTrials.gov NCT IDs live
+// Feed items — PMIDs verified via PubMed E-utilities, NCT IDs live on ClinicalTrials.gov
 const FEED_ITEMS = [
   {
     id: "f1", type: "pubmed",
-    title: "Amivantamab plus Lazertinib in Untreated EGFR-Mutated Advanced NSCLC",
-    journal: "New England Journal of Medicine", date: "Jun 2024",
-    summary: "Phase 3 trial (MARIPOSA) showing amivantamab + lazertinib improved progression-free survival vs osimertinib alone in first-line treatment.",
-    url: "https://pubmed.ncbi.nlm.nih.gov/38942583/",
+    title: "Overall Survival with Amivantamab-Lazertinib in EGFR-Mutated Advanced NSCLC",
+    journal: "New England Journal of Medicine", date: "Sep 2025",
+    summary: "MARIPOSA OS data: amivantamab + lazertinib shows overall survival benefit vs osimertinib alone in first-line EGFR-mutated advanced NSCLC.",
+    url: "https://pubmed.ncbi.nlm.nih.gov/40923797/",
   },
   {
     id: "f2", type: "pubmed",
+    title: "Amivantamab plus Lazertinib in Previously Untreated EGFR-Mutated Advanced NSCLC",
+    journal: "New England Journal of Medicine", date: "Jun 2024",
+    summary: "MARIPOSA Phase 3: amivantamab + lazertinib improved progression-free survival vs osimertinib in first-line treatment.",
+    url: "https://pubmed.ncbi.nlm.nih.gov/38924756/",
+  },
+  {
+    id: "f3", type: "pubmed",
     title: "Osimertinib after Chemoradiotherapy in Stage III EGFR-Mutated NSCLC",
     journal: "New England Journal of Medicine", date: "Jun 2024",
     summary: "LAURA trial: osimertinib maintenance after definitive chemoradiotherapy significantly improved progression-free survival in unresectable Stage III NSCLC.",
-    url: "https://pubmed.ncbi.nlm.nih.gov/38875109/",
+    url: "https://pubmed.ncbi.nlm.nih.gov/38828946/",
   },
   {
-    id: "f3", type: "trial",
+    id: "f4", type: "pubmed",
+    title: "Amivantamab plus Chemotherapy in NSCLC with EGFR Exon 20 Insertions",
+    journal: "New England Journal of Medicine", date: "Oct 2023",
+    summary: "PAPILLON trial: amivantamab combined with platinum-based chemotherapy nearly doubled progression-free survival vs chemotherapy alone.",
+    url: "https://pubmed.ncbi.nlm.nih.gov/37870976/",
+  },
+  {
+    id: "f5", type: "trial",
     title: "MARIPOSA-2: Amivantamab + Lazertinib after Platinum Chemotherapy",
     nctId: "NCT04988295", phase: "Phase 3", status: "Recruiting",
     sponsor: "Janssen Research & Development",
     summary: "For patients with EGFR-mutated NSCLC that has progressed on osimertinib and platinum-based chemotherapy.",
     url: "https://clinicaltrials.gov/study/NCT04988295",
     date: "Updated May 2025",
-  },
-  {
-    id: "f4", type: "forum",
-    source: "Smart Patients",
-    text: "Started cycle 4 of amivantamab at UCSF last week. Fatigue is real but manageable — the team has been incredibly supportive. Happy to answer questions for anyone considering enrolling.",
-    time: "3h ago", replies: 12,
-    url: "https://www.smartpatients.com/clinical-trials",
-  },
-  {
-    id: "f5", type: "pubmed",
-    title: "Amivantamab plus Chemotherapy in EGFR Exon 20 Insertion–Mutated NSCLC",
-    journal: "New England Journal of Medicine", date: "Oct 2023",
-    summary: "PAPILLON trial: amivantamab combined with platinum-based chemotherapy nearly doubled progression-free survival vs chemotherapy alone.",
-    url: "https://pubmed.ncbi.nlm.nih.gov/37950883/",
   },
   {
     id: "f6", type: "trial",
@@ -75,17 +75,17 @@ const FEED_ITEMS = [
   },
   {
     id: "f7", type: "forum",
+    source: "Smart Patients",
+    text: "Started cycle 4 of amivantamab at UCSF last week. Fatigue is real but manageable — the team has been incredibly supportive. Happy to answer questions for anyone considering enrolling.",
+    time: "3h ago", replies: 12,
+    url: "https://www.smartpatients.com/clinical-trials",
+  },
+  {
+    id: "f8", type: "forum",
     source: "Reddit r/nsclc",
     text: "My oncologist didn't mention a Phase 3 trial I qualified for. Found it myself, brought it to her. She agreed I was a good candidate — starting screening next week. Always search clinicaltrials.gov.",
     time: "8h ago", replies: 47,
     url: "https://www.reddit.com/r/nsclc/",
-  },
-  {
-    id: "f8", type: "pubmed",
-    title: "Patient-Reported Outcomes with Lazertinib plus Amivantamab vs Osimertinib",
-    journal: "Journal of Clinical Oncology", date: "Mar 2025",
-    summary: "Quality-of-life data from MARIPOSA showing comparable patient-reported outcomes between combination therapy and osimertinib monotherapy.",
-    url: "https://pubmed.ncbi.nlm.nih.gov/40014765/",
   },
 ];
 
