@@ -51,6 +51,9 @@ type ViewMode = "patient" | "technical";
 type PatientTab = "trials" | "community" | "prepare" | "feed";
 type TechTab = "agents" | "research" | "voice" | "eligibility" | "artifacts";
 
+// Remote backend — CORS is open, so localhost UI can call directly
+const API = "https://light.hackerpod.dev";
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export function LightDashboard() {
   // ── Existing state + functions (DO NOT CHANGE) ───────────────────────────────
@@ -59,10 +62,11 @@ export function LightDashboard() {
   const [error, setError] = useState<string | null>(null);
   const isProcessing = run?.status === "created" || run?.status === "running";
 
+  // Poll remote backend for run state
   useEffect(() => {
     if (!run || !isProcessing) return;
     const timer = window.setInterval(async () => {
-      const res = await fetch(`/api/runs?id=${encodeURIComponent(run.runId)}`);
+      const res = await fetch(`${API}/api/runs?id=${encodeURIComponent(run.runId)}`);
       if (!res.ok) return;
       const next = (await res.json()) as TrialIntelligenceState;
       setRun(next);
@@ -75,7 +79,7 @@ export function LightDashboard() {
 
   async function processIntelligence() {
     setError(null);
-    const res = await fetch("/api/runs", {
+    const res = await fetch(`${API}/api/runs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ patient: toPatientInput(form) }),
@@ -86,7 +90,7 @@ export function LightDashboard() {
 
   async function processConversation(payload: ConversationPayload) {
     setError(null);
-    const res = await fetch("/api/runs", {
+    const res = await fetch(`${API}/api/runs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -102,6 +106,7 @@ export function LightDashboard() {
 
   // ── New UX state ──────────────────────────────────────────────────────────
   const [step, setStep]               = useState<Step>("landing");
+  const [animIdx, setAnimIdx]         = useState(0);
   const [viewMode, setViewMode]       = useState<ViewMode>("patient");
   const [patientTab, setPatientTab]   = useState<PatientTab>("trials");
   const [techTab, setTechTab]         = useState<TechTab>("agents");
@@ -122,13 +127,14 @@ export function LightDashboard() {
   const convProcessed                 = useRef(false);
   const convComplete                  = convCount >= longCovidTranscript.length;
 
-  // Auto-advance processing → dashboard
+  // Go to dashboard once animation finishes — don't wait for backend to fully complete.
+  // Results will stream in as agents finish.
   useEffect(() => {
-    if (step === "processing" && run?.status === "completed") {
-      const t = setTimeout(() => setStep("dashboard"), 600);
+    if (step === "processing" && animIdx >= PROC_STEPS.length - 1) {
+      const t = setTimeout(() => setStep("dashboard"), 400);
       return () => clearTimeout(t);
     }
-  }, [run?.status, step]);
+  }, [step, animIdx]);
 
   // Auto-stream conversation turns
   useEffect(() => {
@@ -178,19 +184,47 @@ export function LightDashboard() {
     await processIntelligence();
   }
 
-  function sendChat() {
-    if (!chatInput.trim()) return;
+  // Pre-index run data into Nia when processing completes (makes chat fast)
+  const indexed = useRef(false);
+  useEffect(() => {
+    if (run?.status !== "completed" || indexed.current) return;
+    indexed.current = true;
+    fetch(`${API}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ runId: run.runId, action: "index" }),
+    }).catch(() => {}); // fire-and-forget
+  }, [run?.status, run?.runId]);
+
+  const [chatLoading, setChatLoading] = useState(false);
+
+  async function sendChat() {
+    if (!chatInput.trim() || chatLoading) return;
     const q = chatInput.trim();
     setChatInput("");
     setChatMessages((m) => [...m, { role: "user", text: q }]);
-    setTimeout(() => {
-      setChatMessages((m) => [...m, {
-        role: "light",
-        text: run?.trials?.length
-          ? `Based on your profile, the strongest match is ${run.trials[0]?.title ?? "the first trial"}. Want detail on eligibility, side effects, or the site?`
-          : "Agents are still processing. Try again once matches appear.",
-      }]);
-    }, 700);
+    setChatLoading(true);
+    try {
+      const res = await fetch(`${API}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          runId: run?.runId,
+          question: q,
+          history: chatMessages.map((m) => ({ role: m.role, content: m.text })),
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setChatMessages((m) => [...m, { role: "light", text: data.answer ?? "No answer returned." }]);
+      } else {
+        setChatMessages((m) => [...m, { role: "light", text: "Couldn't reach the chat service. Try again in a moment." }]);
+      }
+    } catch {
+      setChatMessages((m) => [...m, { role: "light", text: "Couldn't reach the chat service. Are you connected?" }]);
+    } finally {
+      setChatLoading(false);
+    }
   }
 
   function cp(key: string, text: string) {
@@ -199,9 +233,18 @@ export function LightDashboard() {
     setTimeout(() => setCopied(null), 2000);
   }
 
-  const eventCount = run?.events?.length ?? 0;
-  const procIdx = Math.min(Math.floor(eventCount / 3), PROC_STEPS.length - 1);
   const isDone = run?.status === "completed";
+
+  // Animate processing steps at a fixed pace, independent of backend speed.
+  // Snaps to complete when backend finishes, never goes backwards.
+  useEffect(() => {
+    if (step !== "processing") { setAnimIdx(0); return; }
+    if (isDone) { setAnimIdx(PROC_STEPS.length); return; }
+    if (animIdx >= PROC_STEPS.length - 1) return;
+    const t = setTimeout(() => setAnimIdx((n) => Math.min(n + 1, PROC_STEPS.length - 1)), 600);
+    return () => clearTimeout(t);
+  }, [step, isDone, animIdx]);
+  const procIdx = isDone ? PROC_STEPS.length : animIdx;
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -399,9 +442,9 @@ export function LightDashboard() {
             <div className={styles.timeline}>
               {PROC_STEPS.map((s, i) => {
                 const done = isDone || i < procIdx;
-                const active = !isDone && i === procIdx;
+                const active = !isDone && i === procIdx && i < PROC_STEPS.length;
                 return (
-                  <div key={s.label} className={i <= procIdx || isDone ? styles.timelineItem : styles.timelineItemDim}>
+                  <div key={s.label} className={i <= procIdx ? styles.timelineItem : styles.timelineItemDim}>
                     <div className={`${styles.timelineDot} ${done ? styles.timelineDotDone : active ? styles.timelineDotActive : styles.timelineDotOff}`}>
                       {done
                         ? <svg width="14" height="14" fill="none" stroke="white" viewBox="0 0 24 24">
@@ -562,19 +605,28 @@ export function LightDashboard() {
                       </div>
                     )}
                     <div className={styles.chatInputRow}>
-                      <input className={styles.chatInputField} placeholder="Ask anything about these trials…"
+                      <input className={styles.chatInputField}
+                        placeholder={chatLoading ? "Light is thinking…" : "Ask anything about these trials…"}
                         value={chatInput} onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && sendChat()} />
+                        onKeyDown={(e) => e.key === "Enter" && sendChat()}
+                        disabled={chatLoading} />
                       <button className={`${styles.chatMicBtn} ${listening ? styles.chatMicBtnActive : ""}`}
                         onClick={() => setListening((l) => !l)}>
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
                         </svg>
                       </button>
-                      <button className={styles.chatSendBtn} onClick={sendChat}>
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                        </svg>
+                      <button className={styles.chatSendBtn} onClick={sendChat}
+                        disabled={chatLoading} style={{ opacity: chatLoading ? 0.5 : 1 }}>
+                        {chatLoading
+                          ? <svg width="14" height="14" fill="none" viewBox="0 0 24 24" style={{ animation: "spin 0.8s linear infinite", color: "white" }}>
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
+                              <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                            </svg>
+                          : <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                            </svg>
+                        }
                       </button>
                     </div>
                   </div>
