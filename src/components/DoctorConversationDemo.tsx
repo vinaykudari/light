@@ -22,7 +22,7 @@ export function DoctorConversationDemo({
 }) {
   const [visibleCount, setVisibleCount] = useState(0);
   const visibleTranscript = longCovidTranscript.slice(0, visibleCount);
-  const complete = visibleCount >= longCovidTranscript.length;
+  const complete = visibleCount === 0 || visibleCount >= longCovidTranscript.length;
   const followUps = run?.conversation?.followUpQuestions ?? [];
 
   useEffect(() => {
@@ -36,6 +36,7 @@ export function DoctorConversationDemo({
   }
 
   function processConversation() {
+    if (!visibleCount) setVisibleCount(longCovidTranscript.length);
     onProcess({
       patient: toPatientInput(),
       conversationTranscript: longCovidTranscript,
@@ -51,7 +52,7 @@ export function DoctorConversationDemo({
             Start Demo Conversation
           </button>
           <button className={styles.primaryButton} type="button" onClick={processConversation} disabled={!complete || isProcessing}>
-            Process Conversation
+            {isProcessing ? "Processing..." : "Process Conversation"}
           </button>
         </div>
       </div>
