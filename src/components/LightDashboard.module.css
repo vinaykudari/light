@@ -328,7 +328,7 @@
 .privacyNote { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 12px; font-size: 12px; color: #9CA3AF; }
 
 /* Processing */
-.processingWrap { max-width: 440px; margin: 48px auto; padding: 0 24px; }
+.processingWrap { max-width: 640px; margin: 48px auto; padding: 0 24px; }
 .processingCard { background: white; border-radius: 16px; box-shadow: 0 8px 28px rgba(0,0,0,0.08); padding: 40px; text-align: center; }
 .spinnerWrap { display: flex; justify-content: center; margin-bottom: 28px; }
 .spinnerRing { width: 56px; height: 56px; border-radius: 999px; background: #EFF6FF; display: flex; align-items: center; justify-content: center; animation: pulseRing 1.4s ease-out infinite; }
@@ -579,7 +579,7 @@
 .sponsorRailLight {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
 
 .sponsorCard {
@@ -605,13 +605,15 @@
 .sponsorCardLight {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  gap: 6px;
+  padding: 7px 8px;
   border-radius: 10px;
   background: #F8FAFC;
   border: 1px solid #E2E8F0;
   transition: all 0.2s;
   opacity: 0.45;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .sponsorCardLight[data-live] {
@@ -640,7 +642,7 @@
   text-overflow: ellipsis;
 }
 
-.sponsorCardLight strong { color: #0D1117; }
+.sponsorCardLight strong { color: #0D1117; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .sponsorCard span, .sponsorCardLight span {
   display: block;
