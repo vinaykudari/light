@@ -36,7 +36,7 @@ export function ResearchChat({ run }: { run: TrialIntelligenceState | null }) {
     setMessages(nextMessages);
     setQuestion("");
     setLoading(true);
-    setStatus("indexing run corpus on Nia");
+    setStatus("indexing sources");
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -50,14 +50,14 @@ export function ResearchChat({ run }: { run: TrialIntelligenceState | null }) {
       return;
     }
     setSources(json.indexedSources ?? []);
-    setStatus(`${json.sourceMode ?? "mixed"} answer / ${json.indexedSources?.filter((source) => source.status === "indexed").length ?? 0} Nia sources`);
+    setStatus(`${json.sourceMode ?? "mixed"} answer / ${json.indexedSources?.filter((source) => source.status === "indexed").length ?? 0} sources`);
     setMessages([...nextMessages, { role: "assistant", content: json.answer }]);
   }
 
   return (
     <section className={`${styles.cardPanel} panel`} id="research-chat">
       <div className={styles.panelHeader}>
-        <Title kicker="Nia indexed corpus" title="Ask Light About This Run" />
+        <Title kicker="Chat" title="Ask Light" />
         <span className={styles.badge}>{loading ? "thinking" : status}</span>
       </div>
       <div className={styles.chatGrid}>
@@ -71,7 +71,7 @@ export function ResearchChat({ run }: { run: TrialIntelligenceState | null }) {
           ))}
         </div>
         <div className={styles.chatSources}>
-          <strong>Indexed on Nia</strong>
+          <strong>Sources</strong>
           {!sources.length ? <p className="muted">Sources will appear after your first question.</p> : null}
           {sources.slice(0, 8).map((source) => (
             <a href={source.url} key={`${source.url}-${source.kind}`} target="_blank" rel="noreferrer">

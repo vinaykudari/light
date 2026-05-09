@@ -46,13 +46,13 @@ export function DoctorConversationDemo({
   return (
     <section className={`${styles.formPanel} panel`}>
       <div className={styles.panelHeader}>
-        <Title kicker="Doctor voice" title="Live Doctor Conversation Demo" />
+        <Title kicker="Doctor voice" title="Conversation" />
         <div className={styles.buttonRow}>
           <button className={styles.secondaryButton} type="button" onClick={startConversation} disabled={isProcessing}>
-            Start Demo Conversation
+            Start
           </button>
-          <button className={styles.primaryButton} type="button" onClick={processConversation} disabled={!complete || isProcessing}>
-            {isProcessing ? "Processing..." : "Process Conversation"}
+          <button className={styles.primaryButton} type="button" onClick={processConversation} disabled={isProcessing}>
+            {isProcessing ? "Processing..." : "Process"}
           </button>
         </div>
       </div>
@@ -65,18 +65,12 @@ export function DoctorConversationDemo({
         ))}
         {!visibleTranscript.length ? <Empty text="Start the demo conversation to stream the transcript." /> : null}
       </div>
-      <div className={styles.profileMiniGrid}>
+      {followUps.length ? (
         <section className={styles.subCard}>
-          <Title title="Private Profile Fetch" kicker="Conversation agent" />
-          <p className="muted">
-            Light extracts the structured patient context in memory for agent routing. The patient profile itself is not shown on this demo dashboard.
-          </p>
+          <Title title="Follow-up questions" kicker="Missing info" />
+          <List items={followUps} empty="No follow-up questions yet." />
         </section>
-        <section className={styles.subCard}>
-          <Title title="Follow-Up Questions" kicker="Missing info" />
-          <List items={followUps} empty="Questions will appear after the conversation agent runs." />
-        </section>
-      </div>
+      ) : null}
     </section>
   );
 }

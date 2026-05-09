@@ -5,7 +5,7 @@ import styles from "./LightDashboard.module.css";
 export function ArtifactPanel({ artifacts }: { artifacts: GeneratedArtifact[] }) {
   return (
     <section className={`${styles.cardPanel} panel`}>
-      <Title kicker="Outputs" title="Generated Artifacts" />
+      <Title kicker="Outputs" title="Briefing" />
       {!artifacts.length ? <Empty text="Briefing, checklist, email, and missing-data artifacts will appear after processing." /> : (
         <div className={styles.artifactGrid}>
           {artifacts.map((artifact) => (

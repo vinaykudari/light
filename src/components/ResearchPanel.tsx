@@ -5,10 +5,10 @@ import styles from "./LightDashboard.module.css";
 export function ResearchPanel({ summary }: { summary?: ResearchSummary }) {
   return (
     <section className={`${styles.cardPanel} panel`}>
-      <Title kicker="Evidence graph" title="Research Papers + Profile Snippets" />
+      <Title kicker="Evidence" title="Research" />
       {!summary ? <Empty text="Research summaries will appear after processing." /> : (
         <div className={styles.stack}>
-          <div className={styles.queryPill}>Live query: {summary.query}</div>
+          <div className={styles.queryPill}>{summary.query}</div>
           <div className={styles.paperGrid}>
             {summary.selectedPapers.slice(0, 6).map((paper) => (
               <article className={styles.subCard} key={paper.title}>

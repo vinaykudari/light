@@ -5,7 +5,7 @@ import styles from "./LightDashboard.module.css";
 export function EligibilityPanel({ rows }: { rows: EligibilityRow[] }) {
   return (
     <section className={`${styles.cardPanel} panel`}>
-      <Title kicker="Screening" title="Eligibility Matrix" />
+      <Title kicker="Screening" title="Eligibility" />
       {!rows.length ? <Empty text="Eligibility matrix will appear after processing." /> : (
         <div className={styles.stack}>
           {rows.map((row) => (

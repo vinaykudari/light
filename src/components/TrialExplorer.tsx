@@ -32,8 +32,8 @@ export function TrialExplorer({
   return (
     <section className={`${styles.commandPanel} panel`} id="trial-matches">
       <div className={styles.panelHeader}>
-        <Title kicker="Clinical trial command center" title="Trial Matches" />
-        <span className={styles.badge}>{trials.length ? `${trials.length} live candidates` : "waiting"}</span>
+        <Title kicker="Matches" title="Trials" />
+        <span className={styles.badge}>{trials.length ? `${trials.length} candidates` : "waiting"}</span>
       </div>
       {!selected ? <Empty text="Run the agents to open a trial dashboard." /> : (
         <div className={styles.trialConsole}>
@@ -74,14 +74,8 @@ export function TrialExplorer({
               <Block title="Why It Matched" items={selected.matchedCriteria} empty="No matched criteria extracted." />
               <Block title="Needs Verification" items={[...(row?.missingData ?? selected.missingCriteria), ...(row?.possibleExclusionRisks ?? selected.exclusionRisks)]} empty="No verification gaps extracted." />
               <Block title="Coordinator Questions" items={selected.coordinatorQuestions} empty="No coordinator questions extracted." />
-              <Block title="Research Linked To This Profile" items={paperLines(research)} empty="Research papers will connect after retrieval." />
-              <Block title="Patient / Expert Sentiment" items={voice.slice(0, 3).map((theme) => `${theme.theme}: ${theme.summary}`)} empty="Sentiment themes will appear after web and X searches." />
-              <Block title="Sponsor Stack" items={[
-                "Nia indexes this trial record, linked papers, PDFs/pages, and X/web sources.",
-                "Tensorlake runs the agent workflow and source preflight.",
-                "Hyperspell recalls clinic/team memory when matching context exists.",
-                "OpenAI synthesizes trial-specific answers with safety constraints.",
-              ]} empty="Sponsor usage appears after processing." />
+              <Block title="Related Research" items={paperLines(research)} empty="Research papers will connect after retrieval." />
+              <Block title="Patient Voice" items={voice.slice(0, 3).map((theme) => `${theme.theme}: ${theme.summary}`)} empty="Patient voice themes will appear after retrieval." />
             </div>
             <TrialScopedChat runId={runId} runStatus={runStatus} trial={selected} />
           </article>
@@ -111,7 +105,7 @@ function TrialScopedChat({ runId, runStatus, trial }: { runId?: string; runStatu
     setMessages(next);
     setQuestion("");
     setLoading(true);
-    setStatus("indexing trial sources on Nia");
+    setStatus("indexing sources");
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -125,14 +119,14 @@ function TrialScopedChat({ runId, runStatus, trial }: { runId?: string; runStatu
       return;
     }
     const indexed = json.indexedSources?.filter((source) => source.status === "indexed").length ?? 0;
-    setStatus(`${json.scope?.kind ?? "trial"} scope / ${indexed} Nia sources`);
+    setStatus(`${json.scope?.kind ?? "trial"} scope / ${indexed} sources`);
     setMessages([...next, { role: "assistant", content: json.answer }]);
   }
 
   return (
     <section className={styles.trialChat}>
       <div className={styles.panelHeader}>
-        <Title kicker="Trial copilot" title={`Ask About ${trial.nctId}`} />
+        <Title kicker="Chat" title={`Ask ${trial.nctId}`} />
         <span className={styles.badge}>{loading ? "thinking" : status}</span>
       </div>
       <div className={styles.chatLog} aria-live="polite">

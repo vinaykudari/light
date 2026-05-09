@@ -8,7 +8,7 @@ export function PatientVoicePanel({ themes }: { themes: PatientVoiceTheme[] }) {
   const webSources = sources.filter((source) => !xSources.includes(source));
   return (
     <section className={`${styles.cardPanel} panel`}>
-      <Title kicker="Sentiment radar" title="Patient + Expert Signals" />
+      <Title kicker="Signals" title="Patient Voice" />
       {!themes.length ? <Empty text="Patient voice themes will appear after processing." /> : (
         <div className={styles.stack}>
           <div className={styles.signalGrid}>
@@ -22,7 +22,7 @@ export function PatientVoicePanel({ themes }: { themes: PatientVoiceTheme[] }) {
             ))}
           </div>
           <SourceSection title="X.com Signals" empty="X recent search is unavailable or returned no usable public posts for this run." sources={xSources} />
-          <SourceSection title="Web Search Signals" empty="Web search sources will appear when Nia returns linked context." sources={webSources} />
+          <SourceSection title="Web Search Signals" empty="Web search sources will appear when linked context returns." sources={webSources} />
         </div>
       )}
     </section>
