@@ -1,0 +1,57 @@
+import type { TrialCard } from "@/lib/types";
+
+export const seedTrials: TrialCard[] = [
+  {
+    nctId: "NCT05668988",
+    title: "Study of an EGFR Exon 20 Insertion Targeted Therapy in Advanced NSCLC",
+    status: "Recruiting",
+    phase: "Phase 2",
+    locations: [{ facility: "UCSF Helen Diller Family Comprehensive Cancer Center", city: "San Francisco", state: "CA", country: "United States" }],
+    distanceMiles: 4,
+    matchedCriteria: ["Advanced or metastatic NSCLC", "EGFR exon 20 insertion", "Prior platinum-based chemotherapy"],
+    missingCriteria: ["ECOG performance status", "adequate organ function labs", "brain metastases stability"],
+    exclusionRisks: ["Uncontrolled CNS disease may need review", "Recent investigational therapy timing may matter"],
+    coordinatorQuestions: [
+      "Can a recent outside genomic report confirm EGFR exon 20 insertion?",
+      "What biopsy or archival tissue is required for screening?",
+      "Are stable treated brain metastases acceptable?",
+    ],
+    sourceUrl: "https://clinicaltrials.gov/study/NCT05668988",
+    source: "seed",
+  },
+  {
+    nctId: "NCT04856631",
+    title: "Combination Therapy for EGFR-Mutated Non-Small Cell Lung Cancer",
+    status: "Recruiting",
+    phase: "Phase 1/2",
+    locations: [{ facility: "Stanford Cancer Center", city: "Stanford", state: "CA", country: "United States" }],
+    distanceMiles: 35,
+    matchedCriteria: ["Metastatic NSCLC", "EGFR mutation", "Prior systemic therapy"],
+    missingCriteria: ["prior therapy dates", "latest creatinine clearance", "measurable disease documentation"],
+    exclusionRisks: ["Washout period may be required", "Cardiac history may require screening"],
+    coordinatorQuestions: [
+      "How frequent are visits during the first two cycles?",
+      "Can Friday screening or treatment visits be scheduled?",
+      "Is travel or parking reimbursement available?",
+    ],
+    sourceUrl: "https://clinicaltrials.gov/study/NCT04856631",
+    source: "seed",
+  },
+  {
+    nctId: "NCT06000000",
+    title: "New Bay Area Trial Opened for EGFR Exon 20 NSCLC",
+    status: "Not yet recruiting",
+    phase: "Phase 2",
+    locations: [{ facility: "Bay Area Oncology Research Site", city: "San Francisco", state: "CA", country: "United States" }],
+    distanceMiles: 7,
+    matchedCriteria: ["NSCLC", "EGFR exon 20 insertion", "previous platinum therapy"],
+    missingCriteria: ["activation date", "full eligibility criteria", "site contact"],
+    exclusionRisks: ["Protocol details are incomplete until official activation"],
+    coordinatorQuestions: [
+      "When will pre-screening open for the San Francisco site?",
+      "Can the team share expected biopsy and visit frequency requirements?",
+    ],
+    sourceUrl: "https://clinicaltrials.gov/",
+    source: "seed",
+  },
+];
