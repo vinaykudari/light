@@ -1,4 +1,5 @@
 import { seedPatient } from "@/lib/demo/seedPatient";
+import { capabilityMode, getCapabilityReport } from "@/lib/env";
 import type { PatientProfile, PatientProfileInput, TrialIntelligenceState } from "@/lib/types";
 import { makeRunId } from "@/lib/workflows/emitEvent";
 import { runTrialIntelligence } from "@/lib/workflows/runTrialIntelligence";
@@ -16,20 +17,13 @@ export function getRun(runId: string): TrialIntelligenceState | undefined {
 export function startRun(input: Partial<PatientProfileInput>): TrialIntelligenceState {
   const patient = normalizePatient(input);
   const created = new Date().toISOString();
+  const capabilities = getCapabilityReport();
   const placeholder: TrialIntelligenceState = {
     runId: makeRunId(),
     status: "created",
-    sourceMode: "mixed",
+    sourceMode: capabilityMode(capabilities),
     patient,
-    capabilities: {
-      clinicalTrials: true,
-      pubMed: true,
-      xPublicSearch: false,
-      nia: false,
-      tensorlake: false,
-      hyperspell: false,
-      llm: false,
-    },
+    capabilities,
     events: [],
     trials: [],
     patientVoice: [],

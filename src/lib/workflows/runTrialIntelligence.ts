@@ -60,6 +60,12 @@ export async function runTrialIntelligence(
   await emit("system", "running", "Light started trial intelligence run", "Synthetic patient profile stored for education and referral preparation.");
   const result = await runWithTensorlakeOrLocal({
     runLocal: () => runLocalLightWorkflow(state, emit, update),
+    payload: {
+      kind: "light.trial_intelligence.run",
+      runId,
+      patient,
+      source: "light.hackerpod.dev",
+    },
   });
   if (result.message) {
     await emit("system", "running", "Workflow executor selected", result.message, { executor: result.executor });

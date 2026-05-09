@@ -21,7 +21,7 @@ function readSharedEnv(): EnvMap {
     if (index <= 0) continue;
     const key = trimmed.slice(0, index).trim();
     let value = trimmed.slice(index + 1).trim();
-    value = value.replace(/^['"]|['"]$/g, "");
+    value = value.replace(/^[']|[']$/g, "").replace(/^["]|["]$/g, "");
     if (key && value) parsed[key] = value;
   }
   cachedFileEnv = parsed;
@@ -42,13 +42,17 @@ export function hasEnv(names: string[]): boolean {
 }
 
 export function getCapabilityReport(): CapabilityReport {
+  const tensorlakeKey = hasEnv(["TENSORLAKE_API_KEY", "TENSORLAKE_TOKEN"]);
+  const tensorlakeApp = hasEnv(["TENSORLAKE_APP_NAME", "TENSORLAKE_TRIAL_INTELLIGENCE_APP", "TENSORLAKE_ENDPOINT"]);
+  const hyperspellToken = hasEnv(["HYPERSPELL_API_KEY", "HYPERSPELL_TOKEN"]);
+  const hyperspellJwt = hasEnv(["HYPERSPELL_JWT_SECRET"]) && hasEnv(["HYPERSPELL_APP_ID", "HYPERSPELL_APP_NAME"]);
   return {
     clinicalTrials: true,
     pubMed: true,
     xPublicSearch: hasEnv(["X_API_BEARER_TOKEN", "TWITTER_BEARER_TOKEN", "BRAVE_API_KEY"]),
-    nia: hasEnv(["NIA_API_KEY", "NIA_BASE_URL"]),
-    tensorlake: hasEnv(["TENSORLAKE_API_KEY", "TENSORLAKE_ENDPOINT"]),
-    hyperspell: hasEnv(["HYPERSPELL_API_KEY", "HYPERSPELL_PROJECT_ID"]),
+    nia: hasEnv(["NIA_API_KEY", "NIA_TOKEN"]),
+    tensorlake: tensorlakeKey && tensorlakeApp,
+    hyperspell: hyperspellToken || hyperspellJwt,
     llm: hasEnv(["GEMINI_API_KEY", "GOOGLE_API_KEY", "OPENAI_API_KEY", "COPENAI_API_KEY"]),
   };
 }
