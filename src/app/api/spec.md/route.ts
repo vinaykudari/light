@@ -20,7 +20,7 @@ All API routes return permissive CORS headers for local UI development:
 2. Read the returned runId.
 3. Poll GET /api/runs?id={runId} every 700-1500ms.
 4. Render events as the live agent stream.
-5. When status is completed, render trials, research, patientVoice, eligibility, artifacts.
+5. When status is completed, render trials, research, patientVoice, expertSources, eligibility, artifacts.
 6. POST /api/chat with runId and a question to ask over the Nia-indexed run corpus.
 
 ## Endpoints
@@ -65,6 +65,7 @@ Important fields:
 - trials: official trial cards
 - research.selectedPapers: PubMed/Nia papers and links
 - patientVoice: aggregate X/web sentiment themes plus source links
+- expertSources: sourced expert-facing public commentary/context links from X/web retrieval
 - eligibility: missing and review-needed criteria
 - artifacts: patient briefing, clinician checklist, coordinator email, missing data checklist
 

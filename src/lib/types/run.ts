@@ -3,7 +3,7 @@ import type { ConversationSummary } from "./conversation";
 import type { PatientProfile } from "./patient";
 import type { ResearchSummary } from "./research";
 import type { TrialCard, EligibilityRow } from "./trial";
-import type { PatientVoiceTheme } from "./voice";
+import type { PatientVoiceSource, PatientVoiceTheme } from "./voice";
 
 export type AgentName =
   | "system"
@@ -54,6 +54,7 @@ export type TrialIntelligenceState = {
   trials: TrialCard[];
   research?: ResearchSummary;
   patientVoice: PatientVoiceTheme[];
+  expertSources?: PatientVoiceSource[];
   eligibility: EligibilityRow[];
   burden?: BurdenAnalysis;
   artifacts: GeneratedArtifact[];

@@ -55,7 +55,7 @@ export function LightDashboard() {
           <p className={styles.eyebrow}>Light</p>
           <h1>Trial intelligence</h1>
           <p className="muted">
-            Live agents turn a doctor conversation into trial matches, evidence, patient voice, and referral prep.
+            Live agents turn a doctor conversation into trial matches, evidence, patient and expert signals, and referral prep.
           </p>
         </div>
         <div className={styles.sourceMode} aria-live="polite">
@@ -80,11 +80,12 @@ export function LightDashboard() {
         runStatus={run?.status}
         trials={run?.trials ?? []}
         voice={run?.patientVoice ?? []}
+        expertSources={run?.expertSources ?? []}
       />
 
       <section className={styles.contentGrid}>
         <ResearchPanel summary={run?.research} />
-        <PatientVoicePanel themes={run?.patientVoice ?? []} />
+        <PatientVoicePanel themes={run?.patientVoice ?? []} expertSources={run?.expertSources ?? []} />
         <EligibilityPanel rows={run?.eligibility ?? []} />
         <ResearchChat run={run} />
         <ArtifactPanel artifacts={run?.artifacts ?? []} />

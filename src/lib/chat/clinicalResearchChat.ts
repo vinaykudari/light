@@ -94,6 +94,10 @@ function detectScope(question: string, run: TrialIntelligenceState, sources: Nia
     const scoped = sources.filter((source) => source.kind === "x" || source.kind === "web");
     if (scoped.length) return { kind: "voice", sources: scoped };
   }
+  if (/\bexpert|clinician|doctor|researcher|commentary|opinion\b/i.test(question)) {
+    const scoped = sources.filter((source) => /expert context/i.test(source.title) || source.kind === "web" || source.kind === "x");
+    if (scoped.length) return { kind: "voice", sources: scoped };
+  }
   return { kind: "all", sources };
 }
 
@@ -118,6 +122,7 @@ function buildRunContext(run: TrialIntelligenceState, sources: NiaIndexedSource[
     `Clinical trial cards JSON: ${JSON.stringify(trialCards)}`,
     `Research themes: ${run.research?.themes.join("; ") ?? "none yet"}`,
     `Patient voice themes: ${run.patientVoice.map((theme) => `${theme.theme}: ${theme.summary}`).join("; ")}`,
+    `Expert context sources: ${(run.expertSources ?? []).map((source) => `${source.title}: ${source.url ?? "no url"}`).join("; ") || "none yet"}`,
     `Eligibility gaps: ${run.eligibility.flatMap((row) => row.missingData).join("; ")}`,
     `Indexed corpus: ${sources.filter((source) => source.status === "indexed").length}/${sources.length} Nia sources`,
   ].join("\n");

@@ -2,26 +2,30 @@ import type { PatientVoiceSource, PatientVoiceTheme } from "@/lib/types";
 import { Empty, Title } from "./DisplayPrimitives";
 import styles from "./LightDashboard.module.css";
 
-export function PatientVoicePanel({ themes }: { themes: PatientVoiceTheme[] }) {
+export function PatientVoicePanel({ themes, expertSources }: { themes: PatientVoiceTheme[]; expertSources: PatientVoiceSource[] }) {
   const sources = dedupeSources(themes.flatMap((theme) => theme.sources ?? []));
   const xSources = sources.filter((source) => source.source === "x" || /(?:x|twitter)\.com/i.test(source.url ?? ""));
   const webSources = sources.filter((source) => !xSources.includes(source));
+  const experts = dedupeSources(expertSources);
   return (
     <section className={`${styles.cardPanel} panel`}>
-      <Title kicker="Signals" title="Patient Voice" />
-      {!themes.length ? <Empty text="Patient voice themes will appear after processing." /> : (
+      <Title kicker="Signals" title="Patient + Expert" />
+      {!themes.length && !experts.length ? <Empty text="Patient and expert signals will appear after processing." /> : (
         <div className={styles.stack}>
-          <div className={styles.signalGrid}>
-            {themes.map((theme) => (
-              <article className={styles.subCard} key={theme.theme}>
-                <span className={styles.microLabel}>{theme.sentiment} / {theme.signalStrength} / {theme.sourceCount} sources</span>
-                <strong>{theme.theme}</strong>
-                <p>{theme.summary}</p>
-                <p><b>Ask:</b> {theme.coordinatorQuestion}</p>
-                <SourceLinks sources={theme.sources ?? []} />
-              </article>
-            ))}
-          </div>
+          {themes.length ? (
+            <div className={styles.signalGrid}>
+              {themes.map((theme) => (
+                <article className={styles.subCard} key={theme.theme}>
+                  <span className={styles.microLabel}>{theme.sentiment} / {theme.signalStrength} / {theme.sourceCount} sources</span>
+                  <strong>{theme.theme}</strong>
+                  <p>{theme.summary}</p>
+                  <p><b>Ask:</b> {theme.coordinatorQuestion}</p>
+                  <SourceLinks sources={theme.sources ?? []} />
+                </article>
+              ))}
+            </div>
+          ) : null}
+          <SourceSection title="Expert Context" empty="Expert-facing public commentary will appear when X or web retrieval returns usable sources." sources={experts} />
           <SourceSection title="X.com Signals" empty="X recent search is unavailable or returned no usable public posts for this run." sources={xSources} />
           <SourceSection title="Web Search Signals" empty="Web search sources will appear when linked context returns." sources={webSources} />
         </div>

@@ -1,11 +1,12 @@
 import { getEnvValue } from "@/lib/env";
-import { searchNiaPatientVoice } from "@/lib/adapters/niaAdapter";
+import { searchNiaExpertSources, searchNiaPatientVoice } from "@/lib/adapters/niaAdapter";
 import { synthesizeVoiceThemesWithLlm } from "@/lib/llm/patientVoiceSynthesis";
-import type { PatientProfile, PatientVoicePost, PatientVoiceTheme, SourceMode } from "@/lib/types";
+import type { PatientProfile, PatientVoicePost, PatientVoiceSource, PatientVoiceTheme, SourceMode } from "@/lib/types";
 
 type VoiceResult = {
   posts: PatientVoicePost[];
   themes: PatientVoiceTheme[];
+  expertSources: PatientVoiceSource[];
   sourceMode: SourceMode;
   message?: string;
 };
@@ -15,16 +16,22 @@ type XSearchResponse = {
 };
 
 export async function searchPatientVoice(patient: PatientProfile): Promise<VoiceResult> {
-  const officialX = await searchViaOfficialX(patient);
+  const [officialX, expertX, expertNia] = await Promise.all([
+    searchViaOfficialX(patient),
+    searchExpertViaOfficialX(patient),
+    searchNiaExpertSources(patient),
+  ]);
   const clawX = officialX.posts.length ? { posts: [], message: "Claw localizer hydration skipped because official X API returned posts" } : await searchViaClawLocalizer(patient);
-  const handoff = [officialX.message, clawX.message].filter(Boolean).join("; ");
+  const expertSources = dedupeSources([...expertX.sources, ...expertNia.sources]).slice(0, 10);
+  const handoff = [officialX.message, clawX.message, expertX.message, expertNia.message].filter(Boolean).join("; ");
   const posts = dedupePosts([...officialX.posts, ...clawX.posts]).slice(0, 12);
   if (posts.length) {
     const synthesis = await synthesizeVoiceThemesWithLlm(patient, posts);
     return {
       posts,
       themes: synthesis.themes,
-      sourceMode: synthesis.sourceMode,
+      expertSources,
+      sourceMode: mergeModes(synthesis.sourceMode, expertNia.sourceMode),
       message: handoff,
     };
   }
@@ -33,6 +40,7 @@ export async function searchPatientVoice(patient: PatientProfile): Promise<Voice
     return {
       posts: [],
       themes: nia.themes,
+      expertSources,
       sourceMode: nia.sourceMode,
       message: `${handoff || "X APIs returned no usable posts"}; ${nia.message}`,
     };
@@ -41,6 +49,7 @@ export async function searchPatientVoice(patient: PatientProfile): Promise<Voice
     return {
       posts: [],
       themes: [],
+      expertSources,
       sourceMode: "real",
       message: `${handoff || "X APIs returned no usable posts"}; ${nia.message ?? "Nia returned no aggregate patient voice themes"}`,
     };
@@ -48,6 +57,7 @@ export async function searchPatientVoice(patient: PatientProfile): Promise<Voice
   return {
     posts: [],
     themes: [],
+    expertSources,
     sourceMode: "real",
     message: `${handoff || "X APIs returned no usable posts"}; ${nia.message ?? "Nia returned no aggregate patient voice themes"}`,
   };
@@ -97,6 +107,41 @@ async function fetchOfficialXQuery(token: string, query: string): Promise<{ post
     }] : [];
   });
   return { posts };
+}
+
+async function searchExpertViaOfficialX(patient: PatientProfile): Promise<{ sources: PatientVoiceSource[]; message?: string }> {
+  const token = getEnvValue(["X_API_BEARER_TOKEN", "TWITTER_BEARER_TOKEN"]);
+  if (!token) return { sources: [], message: "Official X API bearer token is not configured for expert context" };
+  const settled = await Promise.allSettled(buildExpertQueries(patient).slice(0, 4).map((query) => fetchExpertXQuery(token, query)));
+  const sources = dedupeSources(settled.flatMap((item) => item.status === "fulfilled" ? item.value : []));
+  return {
+    sources: sources.slice(0, 6),
+    message: sources.length
+      ? `Official X API returned ${sources.length} expert-context public posts`
+      : "Official X API returned no expert-context posts",
+  };
+}
+
+async function fetchExpertXQuery(token: string, query: string): Promise<PatientVoiceSource[]> {
+  const params = new URLSearchParams({
+    query: formatXQuery(query),
+    max_results: "10",
+    "tweet.fields": "lang,created_at",
+  });
+  const response = await fetchWithTimeout(`https://api.x.com/2/tweets/search/recent?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }, 7000);
+  if (!response.ok) return [];
+  const json = (await response.json()) as XSearchResponse;
+  return (json.data ?? []).flatMap((tweet) => {
+    const text = sanitizePost(tweet.text ?? "");
+    return tweet.id && text.length > 40 ? [{
+      title: "Public X expert-context post",
+      url: `https://x.com/i/status/${tweet.id}`,
+      source: "x" as const,
+      snippet: text,
+    }] : [];
+  });
 }
 
 async function searchViaClawLocalizer(patient: PatientProfile): Promise<{ posts: PatientVoicePost[]; message?: string }> {
@@ -173,6 +218,16 @@ function dedupePosts(posts: PatientVoicePost[]): PatientVoicePost[] {
   });
 }
 
+function dedupeSources(sources: PatientVoiceSource[]): PatientVoiceSource[] {
+  const seen = new Set<string>();
+  return sources.filter((source) => {
+    const key = source.url ?? `${source.source}:${source.title}:${source.snippet}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function buildVoiceQueries(patient: PatientProfile): string[] {
   const condition = compactCondition(patient.possibleConditionContext ?? patient.diagnosis);
   const symptoms = (patient.symptoms?.length ? patient.symptoms : patient.biomarkers).slice(0, 5);
@@ -186,6 +241,19 @@ function buildVoiceQueries(patient: PatientProfile): string[] {
     `${conditionTerm} research study`,
     `${conditionTerm} travel reimbursement visits`,
     `${conditionTerm} patient reported outcomes`,
+  ]);
+}
+
+function buildExpertQueries(patient: PatientProfile): string[] {
+  const condition = quoteIfNeeded(compactCondition(patient.possibleConditionContext ?? patient.diagnosis));
+  const symptoms = (patient.symptoms?.length ? patient.symptoms : patient.biomarkers).slice(0, 4);
+  return unique([
+    `${condition} (research OR study OR trial OR researcher)`,
+    `${condition} (doctor OR clinician OR physician)`,
+    `${condition} (NIH OR CDC OR UCSF OR Stanford)`,
+    `${condition} patient reported outcomes`,
+    `${condition} outcome measures`,
+    ...symptoms.map((symptom) => `${condition} ${quoteIfNeeded(symptom)} researcher`),
   ]);
 }
 
@@ -204,6 +272,12 @@ function quoteIfNeeded(value: string): string {
 
 function unique(values: string[]): string[] {
   return [...new Set(values.map((value) => value.replace(/\s+/g, " ").trim()).filter(Boolean))];
+}
+
+function mergeModes(...modes: SourceMode[]): SourceMode {
+  if (modes.every((mode) => mode === "real")) return "real";
+  if (modes.every((mode) => mode === "mock")) return "mock";
+  return "mixed";
 }
 
 function isSymptomProfile(patient: PatientProfile): boolean {

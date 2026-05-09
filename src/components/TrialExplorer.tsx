@@ -11,6 +11,7 @@ export function TrialExplorer({
   eligibility,
   research,
   voice,
+  expertSources,
   runId,
   runStatus,
 }: {
@@ -18,6 +19,7 @@ export function TrialExplorer({
   eligibility: EligibilityRow[];
   research?: ResearchSummary;
   voice: PatientVoiceTheme[];
+  expertSources: PatientVoiceSource[];
   runId?: string;
   runStatus?: string;
 }) {
@@ -77,6 +79,7 @@ export function TrialExplorer({
               <Block title="Coordinator Questions" items={selected.coordinatorQuestions} empty="No coordinator questions extracted." />
               <ResearchLinks papers={research?.selectedPapers ?? []} />
               <VoiceLinks themes={voice} />
+              <ExpertLinks sources={expertSources} />
             </div>
             <TrialScopedChat runId={runId} runStatus={runStatus} trial={selected} />
           </article>
@@ -212,6 +215,32 @@ function VoiceLinks({ themes }: { themes: PatientVoiceTheme[] }) {
               ))}
             </div>
           ) : null}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ExpertLinks({ sources }: { sources: PatientVoiceSource[] }) {
+  const visible = dedupeSources(sources).slice(0, 4);
+  return (
+    <section className={styles.consoleBlock}>
+      <strong>Expert Context</strong>
+      {!visible.length ? <Empty text="Expert-facing source links will appear when retrieval returns usable context." /> : (
+        <div className={styles.inlineSources}>
+          {visible.map((source) => (
+            source.url ? (
+              <a href={source.url} key={`${source.source}-${source.url}`} target="_blank" rel="noreferrer">
+                <span>{source.source}</span>
+                {source.title}
+              </a>
+            ) : (
+              <span key={`${source.source}-${source.title}`}>
+                <b>{source.source}</b>
+                {source.title}
+              </span>
+            )
+          ))}
         </div>
       )}
     </section>

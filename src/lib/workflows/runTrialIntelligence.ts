@@ -39,6 +39,7 @@ export async function runTrialIntelligence(
     events: [],
     trials: [],
     patientVoice: [],
+    expertSources: [],
     eligibility: [],
     artifacts: [],
     createdAt: now,
@@ -102,6 +103,7 @@ async function runLocalLightWorkflow(
     ]);
     state.research = research;
     state.patientVoice = voiceResult.themes;
+    state.expertSources = voiceResult.expertSources;
     state.sourceMode = mergeModes(state.sourceMode, research.sourceMode, voiceResult.sourceMode);
     await update();
 

@@ -1,6 +1,6 @@
 import { getEnvValue } from "@/lib/env";
 import { synthesizeVoiceFromSearchContext } from "@/lib/llm/patientVoiceSynthesis";
-import type { PatientProfile, PatientVoiceTheme, ResearchPaper, SourceMode, TrialCard } from "@/lib/types";
+import type { PatientProfile, PatientVoiceSource, PatientVoiceTheme, ResearchPaper, SourceMode, TrialCard } from "@/lib/types";
 
 export async function searchNiaContext(
   patient: PatientProfile,
@@ -60,6 +60,30 @@ export async function searchNiaPatientVoice(
   }
 }
 
+export async function searchNiaExpertSources(
+  patient: PatientProfile,
+): Promise<{ sources: PatientVoiceSource[]; sourceMode: SourceMode; message?: string }> {
+  const token = getEnvValue(["NIA_API_KEY", "NIA_TOKEN"]);
+  if (!token) return { sources: [], sourceMode: "mixed", message: "Nia unavailable for expert context" };
+  try {
+    const condition = compactCondition(patient.possibleConditionContext ?? patient.diagnosis);
+    const symptoms = (patient.symptoms ?? []).slice(0, 5).join(" ");
+    const query = [
+      condition,
+      symptoms,
+      "clinician researcher expert commentary clinical trial outcome measures consensus guideline patient reported outcomes",
+    ].join(" ");
+    const json = await fetchNia(token, query);
+    return {
+      sources: mapNiaSources(json).slice(0, 6),
+      sourceMode: "real",
+      message: "Nia retrieved expert-facing web context",
+    };
+  } catch {
+    return { sources: [], sourceMode: "mixed", message: "Nia expert context request failed" };
+  }
+}
+
 function compactCondition(condition: string): string {
   return condition.split(/\bwith\b|[,;(/]/i)[0]?.trim() || condition;
 }
@@ -105,6 +129,28 @@ function mapNiaPapers(json: Record<string, unknown>): ResearchPaper[] {
   ]
     .map(mapNiaItem)
     .filter((paper): paper is ResearchPaper => Boolean(paper));
+}
+
+function mapNiaSources(json: Record<string, unknown>): PatientVoiceSource[] {
+  return [
+    ...rows(json.other_content),
+    ...rows(json.documentation),
+    ...rows(json.results),
+    ...rows(json.sources),
+  ]
+    .flatMap((item): PatientVoiceSource[] => {
+      const source = isRecord(item.source) ? item.source : {};
+      const url = text(item.url) ?? text(item.link) ?? text(source.url);
+      const title = usableTitle(text(item.title)) ?? text(source.display_name) ?? text(source.document_name) ?? titleFromUrl(url);
+      const snippet = text(item.summary) ?? text(item.snippet) ?? text(item.content);
+      if (!url && !snippet) return [];
+      return [{
+        title: title ?? "Expert web context",
+        url,
+        source: /(?:x|twitter)\.com/i.test(url ?? "") ? "x" as const : "web" as const,
+        snippet,
+      }];
+    });
 }
 
 function rows(value: unknown): Record<string, unknown>[] {
