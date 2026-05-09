@@ -7,6 +7,7 @@ import { ArtifactPanel } from "./ArtifactPanel";
 import { DoctorConversationDemo, type ConversationPayload } from "./DoctorConversationDemo";
 import { EligibilityPanel } from "./EligibilityPanel";
 import { PatientVoicePanel } from "./PatientVoicePanel";
+import { ResearchChat } from "./ResearchChat";
 import { ResearchPanel } from "./ResearchPanel";
 import { SafetyBanner } from "./SafetyBanner";
 import { SponsorRail } from "./SponsorRail";
@@ -100,6 +101,7 @@ export function LightDashboard() {
         <Panel title="Source Status" kicker="Live retrieval">
           <SourceStatus run={run} />
         </Panel>
+        <ResearchChat run={run} />
         <ArtifactPanel artifacts={run?.artifacts ?? []} />
       </section>
     </main>

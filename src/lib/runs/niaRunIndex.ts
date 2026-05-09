@@ -1,0 +1,42 @@
+import { indexNiaSources, type NiaIndexedSource, type NiaIndexSource } from "@/lib/adapters/niaIndexAdapter";
+import type { TrialIntelligenceState } from "@/lib/types";
+
+const indexedRuns = new Map<string, NiaIndexedSource[]>();
+
+export async function ensureRunIndexedOnNia(run: TrialIntelligenceState): Promise<NiaIndexedSource[]> {
+  const cached = indexedRuns.get(run.runId);
+  if (cached?.length) return cached;
+  const indexed = await indexNiaSources(collectRunSources(run));
+  indexedRuns.set(run.runId, indexed);
+  return indexed;
+}
+
+export function collectRunSources(run: TrialIntelligenceState): NiaIndexSource[] {
+  const trialSources = run.trials.flatMap((trial): NiaIndexSource[] =>
+    trial.sourceUrl ? [{
+      title: `${trial.nctId}: ${trial.title}`,
+      url: trial.sourceUrl,
+      kind: "trial",
+      snippet: trial.matchedCriteria.join("; "),
+    }] : [],
+  );
+  const paperSources = run.research?.selectedPapers.flatMap((paper): NiaIndexSource[] =>
+    paper.url ? [{
+      title: paper.title,
+      url: paper.url,
+      kind: "paper",
+      snippet: paper.abstract ?? paper.relevanceReason,
+    }] : [],
+  ) ?? [];
+  const voiceSources = run.patientVoice.flatMap((theme) =>
+    (theme.sources ?? []).flatMap((source): NiaIndexSource[] =>
+      source.url ? [{
+        title: source.title,
+        url: source.url,
+        kind: source.source === "x" ? "x" : "web",
+        snippet: source.snippet ?? theme.summary,
+      }] : [],
+    ),
+  );
+  return [...trialSources, ...paperSources, ...voiceSources];
+}

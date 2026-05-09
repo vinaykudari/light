@@ -201,6 +201,22 @@
 .artifact pre { max-height: 330px; overflow: auto; margin: 8px 0 0; white-space: pre-wrap; color: #c7d8d1; font-family: inherit; font-size: 12px; line-height: 1.45; }
 .empty { padding: 10px; border: 1px dashed rgba(69, 255, 166, 0.2); border-radius: 12px; background: rgba(4, 14, 11, 0.72); }
 
+.chatGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 0.42fr); gap: 12px; }
+.chatLog { display: grid; align-content: start; gap: 10px; min-height: 280px; max-height: 520px; overflow: auto; padding: 10px; border: 1px solid rgba(69, 255, 166, 0.14); border-radius: 13px; background: rgba(1, 8, 6, 0.58); }
+.chatBubble { max-width: 88%; padding: 11px; border: 1px solid rgba(69, 255, 166, 0.16); border-radius: 13px; background: rgba(4, 17, 13, 0.82); }
+.chatBubble[data-role="user"] { justify-self: end; border-color: rgba(127, 233, 255, 0.25); background: rgba(6, 18, 24, 0.82); }
+.chatBubble strong, .chatSources strong { display: block; color: #effff8; font-size: 12px; text-transform: uppercase; }
+.chatBubble p { margin: 6px 0 0; white-space: pre-wrap; color: #cfeee2; font-size: 13px; line-height: 1.45; }
+.chatSources { display: grid; align-content: start; gap: 8px; padding: 12px; border: 1px solid rgba(111, 231, 255, 0.16); border-radius: 13px; background: rgba(5, 15, 18, 0.72); }
+.chatSources a, .suggestionRow button { border: 1px solid rgba(69, 255, 166, 0.16); border-radius: 10px; background: rgba(69, 255, 166, 0.06); color: #dfffee; text-decoration: none; }
+.chatSources a { display: grid; gap: 4px; padding: 8px; font-size: 12px; }
+.chatSources span { color: var(--accent); font-size: 10px; font-weight: 900; text-transform: uppercase; }
+.suggestionRow { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.suggestionRow button { padding: 8px 10px; font-size: 12px; }
+.suggestionRow button:disabled { opacity: 0.45; cursor: not-allowed; }
+.chatForm { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.chatForm input { min-height: 42px; padding: 0 12px; border: 1px solid rgba(69, 255, 166, 0.22); border-radius: 10px; background: rgba(1, 8, 6, 0.9); color: var(--ink); }
+
 .formGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .field { display: grid; gap: 5px; }
 .field:nth-child(3), .field:nth-child(5), .field:nth-child(6) { grid-column: 1 / -1; }
@@ -221,6 +237,7 @@
 @media (max-width: 740px) {
   .header, .panelHeader, .banner, .trialHero { align-items: stretch; grid-template-columns: 1fr; flex-direction: column; }
   .sponsorRail, .dashboardBlocks, .paperGrid, .signalGrid, .sourceGrid, .statGrid, .profileMiniGrid { grid-template-columns: 1fr; }
+  .chatGrid, .chatForm { grid-template-columns: 1fr; }
   .sourceMode, .primaryButton, .secondaryButton { width: 100%; justify-content: center; }
   .header { padding: 18px; }
 }
