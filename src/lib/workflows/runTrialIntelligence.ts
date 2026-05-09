@@ -60,7 +60,8 @@ export async function runTrialIntelligence(
     await update();
   };
 
-  await emit("system", "running", "Light started trial intelligence run", "Synthetic patient profile stored for education and referral preparation.");
+  await emit("system", "running", "Fetching patient profile", "Synthetic patient context loaded privately; profile details stay hidden in the dashboard.");
+  await emit("system", "running", "Light started trial intelligence run", "Agents are preparing evidence, trial, sentiment, eligibility, and briefing workstreams.");
   const conversation = await runConversationAgent({ runId, patient: state.patient, emit }, conversationTranscript);
   state.patient = conversation.patient;
   state.conversation = conversation.summary;

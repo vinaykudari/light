@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { seedPatient } from "@/lib/demo/seedPatient";
 import { longCovidTranscript, longCovidPatient } from "@/lib/demo/longCovidDemo";
-import { SponsorRail } from "./SponsorRail";
 import type {
   PatientProfile, PatientProfileInput,
   TrialIntelligenceState, TrialCard as TrialCardType,
@@ -628,8 +627,24 @@ export function LightDashboard() {
                 </div>
                 <div className={styles.sidebarDivider}/>
                 <div style={{ display: "grid", gap: "8px" }}>
-                  <p className={styles.sidebarTitle}>Sponsors in use</p>
-                  <SponsorRail events={run.events} capabilities={run.capabilities} />
+                  <p className={styles.sidebarTitle}>Capabilities</p>
+                  <div className={styles.capList}>
+                    {[
+                      { label: "ClinicalTrials.gov", on: run.capabilities?.clinicalTrials },
+                      { label: "PubMed",             on: run.capabilities?.pubMed },
+                      { label: "X public search",    on: run.capabilities?.xPublicSearch },
+                      { label: "Nia",                on: run.capabilities?.nia },
+                      { label: "Tensorlake",         on: run.capabilities?.tensorlake },
+                      { label: "Hyperspell",         on: run.capabilities?.hyperspell },
+                      { label: "LLM",                on: run.capabilities?.llm },
+                    ].map((c) => (
+                      <div key={c.label} className={styles.capItem}>
+                        <span className={c.on ? styles.capOn : styles.capOff}/>
+                        <span>{c.label}</span>
+                        {!c.on && <span className={styles.capLabel}>off</span>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div className={styles.sidebarDivider}/>
                 <div style={{ display: "grid", gap: "6px" }}>

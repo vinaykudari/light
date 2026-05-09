@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { longCovidPatient, longCovidTranscript } from "@/lib/demo/longCovidDemo";
 import type { ConversationTurn, PatientProfileInput, TrialIntelligenceState } from "@/lib/types";
 import { Empty, List, Title } from "./DisplayPrimitives";
@@ -22,8 +22,7 @@ export function DoctorConversationDemo({
 }) {
   const [visibleCount, setVisibleCount] = useState(0);
   const visibleTranscript = longCovidTranscript.slice(0, visibleCount);
-  const complete = visibleCount >= longCovidTranscript.length;
-  const extracted = run?.conversation?.extractedProfile;
+  const complete = visibleCount === 0 || visibleCount >= longCovidTranscript.length;
   const followUps = run?.conversation?.followUpQuestions ?? [];
 
   useEffect(() => {
@@ -32,20 +31,12 @@ export function DoctorConversationDemo({
     return () => window.clearTimeout(timer);
   }, [visibleCount, complete]);
 
-  const profileLines = useMemo(() => extracted ? [
-    `Context: ${extracted.possibleConditionContext}`,
-    `Symptoms: ${extracted.symptoms.join(", ")}`,
-    `Duration: ${extracted.duration}`,
-    `Onset: ${extracted.onset}`,
-    `Location: ${extracted.location}`,
-    `Goal: ${extracted.patientGoal}`,
-  ] : [], [extracted]);
-
   function startConversation() {
     setVisibleCount(1);
   }
 
   function processConversation() {
+    if (!visibleCount) setVisibleCount(longCovidTranscript.length);
     onProcess({
       patient: toPatientInput(),
       conversationTranscript: longCovidTranscript,
@@ -55,13 +46,13 @@ export function DoctorConversationDemo({
   return (
     <section className={`${styles.formPanel} panel`}>
       <div className={styles.panelHeader}>
-        <Title kicker="Doctor voice" title="Live Doctor Conversation Demo" />
+        <Title kicker="Doctor voice" title="Conversation" />
         <div className={styles.buttonRow}>
           <button className={styles.secondaryButton} type="button" onClick={startConversation} disabled={isProcessing}>
-            Start Demo Conversation
+            Start
           </button>
-          <button className={styles.primaryButton} type="button" onClick={processConversation} disabled={!complete || isProcessing}>
-            Process Conversation
+          <button className={styles.primaryButton} type="button" onClick={processConversation} disabled={isProcessing}>
+            {isProcessing ? "Processing..." : "Process"}
           </button>
         </div>
       </div>
@@ -74,16 +65,12 @@ export function DoctorConversationDemo({
         ))}
         {!visibleTranscript.length ? <Empty text="Start the demo conversation to stream the transcript." /> : null}
       </div>
-      <div className={styles.profileMiniGrid}>
+      {followUps.length ? (
         <section className={styles.subCard}>
-          <Title title="Extracted Profile" kicker="Conversation agent" />
-          <List items={profileLines} empty="Process the conversation to extract a structured profile." />
+          <Title title="Follow-up questions" kicker="Missing info" />
+          <List items={followUps} empty="No follow-up questions yet." />
         </section>
-        <section className={styles.subCard}>
-          <Title title="Follow-Up Questions" kicker="Missing info" />
-          <List items={followUps} empty="Questions will appear after the conversation agent runs." />
-        </section>
-      </div>
+      ) : null}
     </section>
   );
 }

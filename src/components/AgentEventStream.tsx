@@ -6,12 +6,12 @@ export function AgentEventStream({ events, status }: { events: AgentEvent[]; sta
   return (
     <section className={`${styles.streamPanel} panel`}>
       <div className={styles.panelHeader}>
-        <Title kicker="Agent stream" title="Live agent thoughts" />
+        <Title kicker="Live" title="Agents" />
         <span className={styles.badge}>{status}</span>
       </div>
       <ol className={styles.eventList} aria-live="polite">
         {events.map((event, index) => (
-          <li key={event.id}>
+          <li data-status={event.status} key={event.id}>
             <span>{String(index + 1).padStart(2, "0")}</span>
             <div>
               <strong>{event.agent.replace("_", " ")} / {event.status}</strong>

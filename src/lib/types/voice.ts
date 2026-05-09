@@ -2,6 +2,15 @@ export type PatientVoicePost = {
   id: string;
   text: string;
   source: "x" | "web" | "seed";
+  url?: string;
+  title?: string;
+};
+
+export type PatientVoiceSource = {
+  title: string;
+  url?: string;
+  source: "x" | "web" | "seed";
+  snippet?: string;
 };
 
 export type PatientVoiceTheme = {
@@ -11,4 +20,5 @@ export type PatientVoiceTheme = {
   summary: string;
   coordinatorQuestion: string;
   sourceCount: number;
+  sources?: PatientVoiceSource[];
 };
