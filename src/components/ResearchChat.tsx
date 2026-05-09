@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import type { TrialIntelligenceState } from "@/lib/types";
 import { Empty, Title } from "./DisplayPrimitives";
+import { MarkdownMessage, ThinkingBubble } from "./MarkdownMessage";
 import styles from "./LightDashboard.module.css";
 
 type ChatMessage = {
@@ -66,9 +67,10 @@ export function ResearchChat({ run }: { run: TrialIntelligenceState | null }) {
           {messages.map((message, index) => (
             <article className={styles.chatBubble} data-role={message.role} key={`${message.role}-${index}`}>
               <strong>{message.role === "user" ? "You" : "Light research agent"}</strong>
-              <p>{message.content}</p>
+              {message.role === "assistant" ? <MarkdownMessage content={message.content} /> : <p>{message.content}</p>}
             </article>
           ))}
+          {loading ? <ThinkingBubble label="Light research agent" /> : null}
         </div>
         <div className={styles.chatSources}>
           <strong>Sources</strong>

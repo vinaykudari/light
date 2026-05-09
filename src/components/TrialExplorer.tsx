@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { EligibilityRow, PatientVoiceTheme, ResearchSummary, TrialCard } from "@/lib/types";
 import { Empty, List, Title } from "./DisplayPrimitives";
+import { MarkdownMessage, ThinkingBubble } from "./MarkdownMessage";
 import styles from "./LightDashboard.module.css";
 
 export function TrialExplorer({
@@ -134,9 +135,10 @@ function TrialScopedChat({ runId, runStatus, trial }: { runId?: string; runStatu
         {messages.map((message, index) => (
           <article className={styles.chatBubble} data-role={message.role} key={`${message.role}-${index}`}>
             <strong>{message.role === "user" ? "You" : "Light trial copilot"}</strong>
-            <p>{message.content}</p>
+            {message.role === "assistant" ? <MarkdownMessage content={message.content} /> : <p>{message.content}</p>}
           </article>
         ))}
+        {loading ? <ThinkingBubble label="Light trial copilot" /> : null}
       </div>
       <div className={styles.suggestionRow}>
         {["What should we verify before referral?", "Which symptoms does this trial appear to target?", "What should we ask the coordinator?"].map((item) => (

@@ -72,8 +72,22 @@
 .chatLog { display: grid; align-content: start; gap: 10px; min-height: 280px; max-height: 520px; overflow: auto; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #05100c; }
 .chatBubble { max-width: 88%; padding: 11px; border: 1px solid var(--line); border-radius: 10px; background: #07140f; }
 .chatBubble[data-role="user"] { justify-self: end; background: #0a1715; }
-.chatBubble strong, .chatSources strong { display: block; color: #f2fff9; font-size: 12px; text-transform: uppercase; }
+.chatBubble > strong, .chatSources strong { display: block; color: #f2fff9; font-size: 12px; text-transform: uppercase; }
 .chatBubble p { margin: 6px 0 0; white-space: pre-wrap; color: #cfeee2; font-size: 13px; line-height: 1.45; }
+.markdownMessage { display: grid; gap: 8px; margin-top: 6px; color: #cfeee2; font-size: 13px; line-height: 1.45; }
+.markdownMessage p, .markdownMessage ul, .markdownMessage ol, .markdownMessage h4, .markdownMessage pre { margin: 0; }
+.markdownMessage h4 { color: #f2fff9; font-size: 13px; }
+.markdownMessage ul, .markdownMessage ol { display: grid; gap: 6px; padding-left: 18px; }
+.markdownMessage li::marker { color: var(--accent); }
+.markdownMessage strong { color: #f2fff9; font-weight: 800; }
+.markdownMessage a { color: var(--accent); text-decoration: none; }
+.markdownMessage a:hover { text-decoration: underline; }
+.markdownMessage pre { overflow: auto; padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: #04100c; white-space: pre-wrap; }
+.thinkingBubble { width: max-content; min-width: 112px; }
+.typingDots { display: flex; gap: 5px; margin-top: 9px; }
+.typingDots span { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: typingDot 1s infinite ease-in-out; }
+.typingDots span:nth-child(2) { animation-delay: 0.14s; }
+.typingDots span:nth-child(3) { animation-delay: 0.28s; }
 .chatSources { display: grid; align-content: start; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #07140f; }
 .chatSources a, .suggestionRow button { border: 1px solid var(--line); border-radius: 8px; background: #081812; color: #dfffee; text-decoration: none; }
 .chatSources a { display: grid; gap: 4px; padding: 8px; font-size: 12px; }
@@ -94,5 +108,6 @@
 .trialCard, .trialTopline { display: grid; gap: 8px; }
 
 @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(45, 242, 154, 0.4); } 50% { box-shadow: 0 0 0 8px rgba(45, 242, 154, 0); } }
+@keyframes typingDot { 0%, 80%, 100% { opacity: 0.35; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-4px); } }
 @media (max-width: 1180px) { .demoGrid, .contentGrid, .trialConsole { grid-template-columns: 1fr; } }
 @media (max-width: 740px) { .header, .panelHeader, .banner, .trialHero { align-items: stretch; grid-template-columns: 1fr; flex-direction: column; } .dashboardBlocks, .paperGrid, .signalGrid, .sourceGrid, .statGrid, .profileMiniGrid { grid-template-columns: 1fr; } .chatGrid, .chatForm { grid-template-columns: 1fr; } .sourceMode, .primaryButton, .secondaryButton { width: 100%; justify-content: center; } .header { padding: 16px; } }
