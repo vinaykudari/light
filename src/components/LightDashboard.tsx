@@ -87,6 +87,8 @@ export function LightDashboard() {
       <TrialExplorer
         eligibility={run?.eligibility ?? []}
         research={run?.research}
+        runId={run?.runId}
+        runStatus={run?.status}
         trials={run?.trials ?? []}
         voice={run?.patientVoice ?? []}
       />

@@ -76,6 +76,7 @@
 .artifact pre { max-height: 330px; overflow: auto; margin: 8px 0 0; white-space: pre-wrap; color: #c7d8d1; font-family: inherit; font-size: 12px; line-height: 1.45; }
 .empty { padding: 10px; border: 1px dashed var(--line); border-radius: 10px; background: #06110d; }
 
+.trialChat { margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #05100c; }
 .chatGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 0.42fr); gap: 12px; }
 .chatLog { display: grid; align-content: start; gap: 10px; min-height: 280px; max-height: 520px; overflow: auto; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #05100c; }
 .chatBubble { max-width: 88%; padding: 11px; border: 1px solid var(--line); border-radius: 10px; background: #07140f; }

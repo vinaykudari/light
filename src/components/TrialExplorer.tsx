@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { EligibilityRow, PatientVoiceTheme, ResearchSummary, TrialCard } from "@/lib/types";
 import { Empty, List, Title } from "./DisplayPrimitives";
 import styles from "./LightDashboard.module.css";
@@ -10,11 +10,15 @@ export function TrialExplorer({
   eligibility,
   research,
   voice,
+  runId,
+  runStatus,
 }: {
   trials: TrialCard[];
   eligibility: EligibilityRow[];
   research?: ResearchSummary;
   voice: PatientVoiceTheme[];
+  runId?: string;
+  runStatus?: string;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = useMemo(() => trials.find((trial) => trial.nctId === selectedId) ?? trials[0], [selectedId, trials]);
@@ -72,10 +76,83 @@ export function TrialExplorer({
               <Block title="Coordinator Questions" items={selected.coordinatorQuestions} empty="No coordinator questions extracted." />
               <Block title="Research Linked To This Profile" items={paperLines(research)} empty="Research papers will connect after retrieval." />
               <Block title="Patient / Expert Sentiment" items={voice.slice(0, 3).map((theme) => `${theme.theme}: ${theme.summary}`)} empty="Sentiment themes will appear after web and X searches." />
+              <Block title="Sponsor Stack" items={[
+                "Nia indexes this trial record, linked papers, PDFs/pages, and X/web sources.",
+                "Tensorlake runs the agent workflow and source preflight.",
+                "Hyperspell recalls clinic/team memory when matching context exists.",
+                "OpenAI synthesizes trial-specific answers with safety constraints.",
+              ]} empty="Sponsor usage appears after processing." />
             </div>
+            <TrialScopedChat runId={runId} runStatus={runStatus} trial={selected} />
           </article>
         </div>
       )}
+    </section>
+  );
+}
+
+type TrialChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+function TrialScopedChat({ runId, runStatus, trial }: { runId?: string; runStatus?: string; trial: TrialCard }) {
+  const [messages, setMessages] = useState<TrialChatMessage[]>([]);
+  const [question, setQuestion] = useState("");
+  const [status, setStatus] = useState("ready");
+  const [loading, setLoading] = useState(false);
+  const ready = Boolean(runId && runStatus === "completed");
+
+  async function ask(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!runId || !question.trim() || loading) return;
+    const scopedQuestion = `For ${trial.nctId}, ${question.trim()}`;
+    const next = [...messages, { role: "user" as const, content: question.trim() }];
+    setMessages(next);
+    setQuestion("");
+    setLoading(true);
+    setStatus("indexing trial sources on Nia");
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ runId, question: scopedQuestion, history: messages }),
+    });
+    const json = await response.json() as { answer?: string; error?: string; scope?: { kind?: string }; indexedSources?: Array<{ status: string }> };
+    setLoading(false);
+    if (!response.ok || !json.answer) {
+      setStatus(json.error ?? "chat failed");
+      setMessages([...next, { role: "assistant", content: json.error ?? "Chat failed." }]);
+      return;
+    }
+    const indexed = json.indexedSources?.filter((source) => source.status === "indexed").length ?? 0;
+    setStatus(`${json.scope?.kind ?? "trial"} scope / ${indexed} Nia sources`);
+    setMessages([...next, { role: "assistant", content: json.answer }]);
+  }
+
+  return (
+    <section className={styles.trialChat}>
+      <div className={styles.panelHeader}>
+        <Title kicker="Trial copilot" title={`Ask About ${trial.nctId}`} />
+        <span className={styles.badge}>{loading ? "thinking" : status}</span>
+      </div>
+      <div className={styles.chatLog} aria-live="polite">
+        {!messages.length ? <Empty text="Ask trial-specific questions. The chat is scoped to this NCT record and the indexed evidence corpus." /> : null}
+        {messages.map((message, index) => (
+          <article className={styles.chatBubble} data-role={message.role} key={`${message.role}-${index}`}>
+            <strong>{message.role === "user" ? "You" : "Light trial copilot"}</strong>
+            <p>{message.content}</p>
+          </article>
+        ))}
+      </div>
+      <div className={styles.suggestionRow}>
+        {["What should we verify before referral?", "Which symptoms does this trial appear to target?", "What should we ask the coordinator?"].map((item) => (
+          <button disabled={!ready || loading} key={item} onClick={() => setQuestion(item)} type="button">{item}</button>
+        ))}
+      </div>
+      <form className={styles.chatForm} onSubmit={ask}>
+        <input disabled={!ready || loading} onChange={(event) => setQuestion(event.target.value)} placeholder={ready ? `Ask about ${trial.nctId}...` : "Trial chat unlocks when the run completes"} value={question} />
+        <button className={styles.primaryButton} disabled={!ready || loading || !question.trim()} type="submit">Ask</button>
+      </form>
     </section>
   );
 }
