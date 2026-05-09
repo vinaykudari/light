@@ -15,6 +15,7 @@ import { PatientProfileForm, type PatientFormState } from "./PatientProfileForm"
 import { PatientVoicePanel } from "./PatientVoicePanel";
 import { ResearchPanel } from "./ResearchPanel";
 import { Empty } from "./DisplayPrimitives";
+import { MarkdownMessage } from "./MarkdownMessage";
 import styles from "./LightDashboard.module.css";
 
 // ─── Static data ──────────────────────────────────────────────────────────────
@@ -700,7 +701,9 @@ export function LightDashboard() {
                         {chatMessages.map((m, i) => (
                           <div key={i} className={`${styles.chatMsg} ${m.role === "user" ? styles.chatMsgUser : ""}`}>
                             {m.role === "light" && <div className={styles.chatMsgAvatar}>L</div>}
-                            <div className={`${styles.chatBubble} ${m.role === "user" ? styles.chatBubbleUser : ""}`}>{m.text}</div>
+                            <div className={`${styles.chatBubble} ${m.role === "user" ? styles.chatBubbleUser : ""}`}>
+                              {m.role === "user" ? m.text : <MarkdownMessage content={m.text} />}
+                            </div>
                           </div>
                         ))}
                       </div>
