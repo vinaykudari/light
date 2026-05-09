@@ -70,12 +70,20 @@ Important fields:
 
 ### POST /api/chat
 
-Ask questions after a run completes. The backend indexes trial records, papers, PDFs/pages, X/web links, and run context into Nia where possible.
+Ask questions after a run completes. The backend indexes all clinical trial source records returned for that run, papers, PDFs/pages, X/web links, and run context into Nia where possible.
+
+To pre-index without asking a question:
+
+\`\`\`json
+{ "runId": "run_example", "action": "index" }
+\`\`\`
+
+To ask about a specific clinical trial, mention the NCT ID. The chat agent scopes retrieval to that clinical trial source when possible.
 
 \`\`\`json
 {
   "runId": "run_example",
-  "question": "Which missing details should the doctor collect before referral?",
+  "question": "For NCT06847191, what should we verify before referral?",
   "history": []
 }
 \`\`\`
@@ -87,9 +95,14 @@ Response:
   "answer": "Clinician-reviewed answer...",
   "indexedSources": [],
   "niaAnswer": "Raw Nia corpus answer...",
-  "sourceMode": "real"
+  "sourceMode": "real",
+  "scope": { "kind": "trial", "trialId": "NCT06847191" }
 }
 \`\`\`
+
+### GET /api/chat?runId={runId}
+
+Returns current Nia indexing status for that completed run.
 
 ## OpenAPI
 

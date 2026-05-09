@@ -89,7 +89,8 @@ export function GET() {
           summary: "Ask a question over completed run sources indexed on Nia",
           description: [
             "Use after a run is completed.",
-            "The backend indexes trial records, research papers, PDFs/pages, X/web sentiment links, and extracted run context into Nia where possible, then answers with LLM synthesis.",
+            "The backend indexes all clinical trial source records from the completed run, research papers, PDFs/pages, X/web sentiment links, and extracted run context into Nia where possible, then answers with LLM synthesis.",
+            "Questions that mention an NCT ID are scoped to that specific clinical trial. Questions about papers or sentiment are scoped to paper/web or X/web sources.",
             "Keep chat history short. Send the previous few user/assistant messages in history for continuity.",
           ].join("\n\n"),
           requestBody: {
@@ -98,6 +99,19 @@ export function GET() {
               "application/json": {
                 schema: { $ref: "#/components/schemas/ChatRequest" },
                 examples: {
+                  indexRun: {
+                    value: {
+                      runId: "run_dfa4ce92-719f-435f-bc83-6f572ad00cb4",
+                      action: "index",
+                    },
+                  },
+                  trialQuestion: {
+                    value: {
+                      runId: "run_dfa4ce92-719f-435f-bc83-6f572ad00cb4",
+                      question: "For NCT06847191, what does the record say is relevant and what should we verify before referral?",
+                      history: [],
+                    },
+                  },
                   missingInfo: {
                     value: {
                       runId: "run_dfa4ce92-719f-435f-bc83-6f572ad00cb4",
@@ -109,11 +123,32 @@ export function GET() {
               },
             },
           },
+          parameters: [{
+            name: "action",
+            in: "query",
+            required: false,
+            description: "Set action=index to pre-index completed run sources without asking a question.",
+            schema: { type: "string", enum: ["index"] },
+          }],
           responses: {
             "200": { description: "Chat answer", content: { "application/json": { schema: { $ref: "#/components/schemas/ChatResponse" } } } },
             "400": { description: "Missing runId or question" },
             "404": { description: "Run not found" },
             "409": { description: "Run is not completed yet" },
+          },
+        },
+        get: {
+          tags: ["Chat"],
+          summary: "Check Nia indexing status for a completed run",
+          parameters: [{
+            name: "runId",
+            in: "query",
+            required: true,
+            description: "Run id returned by POST /api/runs",
+            schema: { type: "string" },
+          }],
+          responses: {
+            "200": { description: "Nia index status", content: { "application/json": { schema: { $ref: "#/components/schemas/ChatIndexResponse" } } } },
           },
         },
       },
@@ -184,7 +219,8 @@ function schemas() {
     PatientVoiceTheme: { type: "object", properties: { theme: { type: "string" }, sentiment: { enum: ["positive", "neutral", "negative", "mixed"] }, signalStrength: { enum: ["low", "medium", "high"] }, summary: { type: "string" }, coordinatorQuestion: { type: "string" }, sourceCount: { type: "number" }, sources: { type: "array", items: { type: "object" } } } },
     EligibilityRow: { type: "object", properties: { trialId: { type: "string" }, trialTitle: { type: "string" }, matchedCriteria: { type: "array", items: { type: "string" } }, missingData: { type: "array", items: { type: "string" } }, possibleExclusionRisks: { type: "array", items: { type: "string" } }, reviewNote: { type: "string" } } },
     GeneratedArtifact: { type: "object", properties: { runId: { type: "string" }, kind: { enum: ["patient_briefing", "clinician_checklist", "coordinator_email", "missing_data_checklist"] }, title: { type: "string" }, content: { type: "string" } } },
-    ChatRequest: { type: "object", required: ["runId", "question"], properties: { runId: { type: "string" }, question: { type: "string" }, history: { type: "array", items: { type: "object", properties: { role: { enum: ["user", "assistant"] }, content: { type: "string" } } } } } },
-    ChatResponse: { type: "object", properties: { answer: { type: "string" }, indexedSources: { type: "array", items: { type: "object" } }, niaAnswer: { type: "string" }, sourceMode: { enum: ["real", "mixed", "mock"] } } },
+    ChatRequest: { type: "object", required: ["runId"], properties: { runId: { type: "string" }, question: { type: "string" }, action: { enum: ["index"] }, history: { type: "array", items: { type: "object", properties: { role: { enum: ["user", "assistant"] }, content: { type: "string" } } } } } },
+    ChatIndexResponse: { type: "object", properties: { runId: { type: "string" }, ready: { type: "boolean" }, totalSources: { type: "number" }, indexedSources: { type: "array", items: { type: "object" } }, indexedCount: { type: "number" }, failedCount: { type: "number" } } },
+    ChatResponse: { type: "object", properties: { answer: { type: "string" }, indexedSources: { type: "array", items: { type: "object" } }, niaAnswer: { type: "string" }, sourceMode: { enum: ["real", "mixed", "mock"] }, scope: { type: "object" } } },
   };
 }
