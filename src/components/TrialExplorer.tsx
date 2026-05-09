@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import type { EligibilityRow, PatientVoiceTheme, ResearchSummary, TrialCard } from "@/lib/types";
+import type { EligibilityRow, PatientVoiceSource, PatientVoiceTheme, ResearchPaper, ResearchSummary, TrialCard } from "@/lib/types";
 import { Empty, List, Title } from "./DisplayPrimitives";
 import { MarkdownMessage, ThinkingBubble } from "./MarkdownMessage";
 import styles from "./LightDashboard.module.css";
@@ -75,8 +75,8 @@ export function TrialExplorer({
               <Block title="Why It Matched" items={selected.matchedCriteria} empty="No matched criteria extracted." />
               <Block title="Needs Verification" items={[...(row?.missingData ?? selected.missingCriteria), ...(row?.possibleExclusionRisks ?? selected.exclusionRisks)]} empty="No verification gaps extracted." />
               <Block title="Coordinator Questions" items={selected.coordinatorQuestions} empty="No coordinator questions extracted." />
-              <Block title="Related Research" items={paperLines(research)} empty="Research papers will connect after retrieval." />
-              <Block title="Patient Voice" items={voice.slice(0, 3).map((theme) => `${theme.theme}: ${theme.summary}`)} empty="Patient voice themes will appear after retrieval." />
+              <ResearchLinks papers={research?.selectedPapers ?? []} />
+              <VoiceLinks themes={voice} />
             </div>
             <TrialScopedChat runId={runId} runStatus={runStatus} trial={selected} />
           </article>
@@ -162,8 +162,70 @@ function Block({ title, items, empty }: { title: string; items: string[]; empty:
   );
 }
 
-function paperLines(summary?: ResearchSummary): string[] {
-  return summary?.selectedPapers.slice(0, 4).map((paper) => `${paper.title}${paper.year ? ` (${paper.year})` : ""}`) ?? [];
+function ResearchLinks({ papers }: { papers: ResearchPaper[] }) {
+  return (
+    <section className={styles.consoleBlock}>
+      <strong>Related Research</strong>
+      {!papers.length ? <Empty text="Research papers will connect after retrieval." /> : (
+        <div className={styles.inlineSources}>
+          {papers.slice(0, 4).map((paper) => (
+            paper.url ? (
+              <a href={paper.url} key={paper.title} target="_blank" rel="noreferrer">
+                <span>{paper.source}{paper.year ? ` / ${paper.year}` : ""}</span>
+                {paper.title}
+              </a>
+            ) : (
+              <span key={paper.title}>
+                <b>{paper.source}{paper.year ? ` / ${paper.year}` : ""}</b>
+                {paper.title}
+              </span>
+            )
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function VoiceLinks({ themes }: { themes: PatientVoiceTheme[] }) {
+  const sources = dedupeSources(themes.flatMap((theme) => theme.sources ?? [])).slice(0, 4);
+  return (
+    <section className={styles.consoleBlock}>
+      <strong>Patient Voice</strong>
+      {!themes.length ? <Empty text="Patient voice themes will appear after retrieval." /> : (
+        <div className={styles.linkStack}>
+          <List items={themes.slice(0, 2).map((theme) => `${theme.theme}: ${theme.summary}`)} empty="No patient voice themes yet." />
+          {sources.length ? (
+            <div className={styles.inlineSources}>
+              {sources.map((source) => (
+                source.url ? (
+                  <a href={source.url} key={`${source.source}-${source.url}`} target="_blank" rel="noreferrer">
+                    <span>{source.source}</span>
+                    {source.title}
+                  </a>
+                ) : (
+                  <span key={`${source.source}-${source.title}`}>
+                    <b>{source.source}</b>
+                    {source.title}
+                  </span>
+                )
+              ))}
+            </div>
+          ) : null}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function dedupeSources(sources: PatientVoiceSource[]): PatientVoiceSource[] {
+  const seen = new Set<string>();
+  return sources.filter((source) => {
+    const key = source.url ?? `${source.source}:${source.title}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function locationText(trial: TrialCard): string {

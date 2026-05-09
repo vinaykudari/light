@@ -18,6 +18,7 @@ export function PatientVoicePanel({ themes }: { themes: PatientVoiceTheme[] }) {
                 <strong>{theme.theme}</strong>
                 <p>{theme.summary}</p>
                 <p><b>Ask:</b> {theme.coordinatorQuestion}</p>
+                <SourceLinks sources={theme.sources ?? []} />
               </article>
             ))}
           </div>
@@ -26,6 +27,28 @@ export function PatientVoicePanel({ themes }: { themes: PatientVoiceTheme[] }) {
         </div>
       )}
     </section>
+  );
+}
+
+function SourceLinks({ sources }: { sources: PatientVoiceSource[] }) {
+  const visible = dedupeSources(sources).slice(0, 3);
+  if (!visible.length) return null;
+  return (
+    <div className={styles.inlineSources}>
+      {visible.map((source) => (
+        source.url ? (
+          <a href={source.url} key={`${source.source}-${source.url}`} target="_blank" rel="noreferrer">
+            <span>{source.source}</span>
+            {source.title}
+          </a>
+        ) : (
+          <span key={`${source.source}-${source.title}`}>
+            <b>{source.source}</b>
+            {source.title}
+          </span>
+        )
+      ))}
+    </div>
   );
 }
 
