@@ -17,6 +17,11 @@ export function AgentEventStream({ events, status }: { events: AgentEvent[]; sta
               <strong>{event.agent.replace("_", " ")} / {event.status}</strong>
               <p>{event.title}</p>
               <small>{event.detail}</small>
+              {event.metadata?.sourceUrl ? (
+                <a className={styles.sourceLink} href={String(event.metadata.sourceUrl)} target="_blank" rel="noreferrer">
+                  Open source
+                </a>
+              ) : null}
             </div>
           </li>
         ))}

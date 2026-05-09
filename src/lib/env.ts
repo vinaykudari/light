@@ -45,7 +45,7 @@ export function getCapabilityReport(): CapabilityReport {
   return {
     clinicalTrials: true,
     pubMed: true,
-    xPublicSearch: hasEnv(["X_API_BEARER_TOKEN", "TWITTER_BEARER_TOKEN"]),
+    xPublicSearch: hasEnv(["X_API_BEARER_TOKEN", "TWITTER_BEARER_TOKEN", "BRAVE_API_KEY"]),
     nia: hasEnv(["NIA_API_KEY", "NIA_BASE_URL"]),
     tensorlake: hasEnv(["TENSORLAKE_API_KEY", "TENSORLAKE_ENDPOINT"]),
     hyperspell: hasEnv(["HYPERSPELL_API_KEY", "HYPERSPELL_PROJECT_ID"]),

@@ -9,7 +9,7 @@ export async function generateText(prompt: string): Promise<{
   if (!geminiKey) return { text: deterministicText(prompt), sourceMode: "mock" };
   try {
     const client = new GoogleGenerativeAI(geminiKey);
-    const model = client.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = client.getGenerativeModel({ model: getEnvValue(["LIGHT_LLM_MODEL"]) ?? "gemini-2.5-flash" });
     const result = await model.generateContent(prompt);
     return { text: result.response.text(), sourceMode: "real" };
   } catch {

@@ -12,6 +12,11 @@ export function TrialCard({ trial }: { trial: TrialCardType }) {
       <p className="muted">
         {trial.phase ?? "Phase not listed"} / {locationText(trial)} {trial.distanceMiles ? `/ ${trial.distanceMiles} mi` : ""}
       </p>
+      {trial.sourceUrl ? (
+        <a className={styles.sourceLink} href={trial.sourceUrl} target="_blank" rel="noreferrer">
+          Official source: {trial.source}
+        </a>
+      ) : null}
       <div className={styles.tags}>
         {trial.matchedCriteria.slice(0, 4).map((item) => <span key={item}>{item}</span>)}
       </div>

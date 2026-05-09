@@ -14,8 +14,8 @@ export async function runResearchAgent(
   if (summary.sourceMode === "mock") {
     await context.emit("research", "running", "API failed, using fallback", "Research evidence is using seeded demo summaries.");
   }
-  await context.emit("research", "running", "Retrieved papers", `${summary.papersFound} papers or seeded summaries are available.`);
-  await context.emit("research", "running", "Selecting relevant studies", "Selected evidence focuses on biomarker, prior therapy, and screening context.");
+  await context.emit("research", "running", "Retrieved papers", `${summary.papersFound} PubMed papers or seeded summaries are available.`);
+  await context.emit("research", "running", "Selecting relevant studies", `Selected papers include: ${summary.selectedPapers.slice(0, 3).map((paper) => paper.title).join("; ")}`);
   await context.emit("research", "running", "Summarizing research context", "Research context is being converted into clinician-review questions.");
   await context.emit("research", "completed", "Completed research evidence summary", "Research evidence summary is ready.");
   return summary;

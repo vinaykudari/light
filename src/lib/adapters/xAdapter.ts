@@ -8,13 +8,33 @@ export async function searchPatientVoice(patient: PatientProfile): Promise<{
   sourceMode: "real" | "mock";
   message?: string;
 }> {
-  const token = getEnvValue(["X_API_BEARER_TOKEN", "TWITTER_BEARER_TOKEN"]);
-  if (!token) {
-    return { posts: seedXPosts, themes: seedVoiceThemes, sourceMode: "mock", message: "X API credentials missing, using seeded demo signals" };
+  const x = await searchX(patient);
+  if (x.posts.length) return { posts: x.posts, themes: clusterVoice(x.posts), sourceMode: "real" };
+
+  const web = await searchPublicWeb(patient);
+  if (web.posts.length) {
+    return {
+      posts: web.posts,
+      themes: clusterVoice(web.posts),
+      sourceMode: "real",
+      message: x.message ? `${x.message}; using live public web search snippets` : "Using live public web search snippets",
+    };
   }
+
+  return {
+    posts: seedXPosts,
+    themes: seedVoiceThemes,
+    sourceMode: "mock",
+    message: `${x.message ?? "X API unavailable"}; public web search unavailable, using seeded synthetic signals`,
+  };
+}
+
+async function searchX(patient: PatientProfile): Promise<{ posts: PatientVoicePost[]; message?: string }> {
+  const token = getEnvValue(["X_API_BEARER_TOKEN", "TWITTER_BEARER_TOKEN"]);
+  if (!token) return { posts: [], message: "X API credentials missing" };
   try {
     const params = new URLSearchParams({
-      query: buildQuery(patient),
+      query: buildXQuery(patient),
       max_results: "20",
       "tweet.fields": "created_at,lang",
     });
@@ -23,34 +43,71 @@ export async function searchPatientVoice(patient: PatientProfile): Promise<{
     });
     if (!response.ok) throw new Error(`X API ${response.status}`);
     const json = (await response.json()) as { data?: Array<{ id: string; text: string; lang?: string }> };
-    const posts = (json.data ?? [])
-      .filter((post) => !post.lang || post.lang === "en")
-      .map((post) => ({ id: post.id, text: sanitizePost(post.text), source: "x" as const }))
-      .filter((post) => post.text.length > 20);
-    if (posts.length === 0) {
-      return { posts: seedXPosts, themes: seedVoiceThemes, sourceMode: "mock", message: "No relevant public posts found, using seeded demo signals" };
-    }
-    return { posts, themes: clusterVoice(posts), sourceMode: "real" };
+    return {
+      posts: (json.data ?? [])
+        .filter((post) => !post.lang || post.lang === "en")
+        .map((post) => ({ id: post.id, text: sanitizePost(post.text), source: "x" as const }))
+        .filter((post) => post.text.length > 20),
+    };
   } catch (error) {
-    return { posts: seedXPosts, themes: seedVoiceThemes, sourceMode: "mock", message: `X API unavailable, using seeded demo signals: ${safeError(error)}` };
+    return { posts: [], message: `X recent search unavailable: ${safeError(error)}` };
   }
 }
 
-function buildQuery(patient: PatientProfile): string {
-  const terms = [
+async function searchPublicWeb(patient: PatientProfile): Promise<{ posts: PatientVoicePost[] }> {
+  const token = getEnvValue(["BRAVE_API_KEY"]);
+  if (!token) return { posts: [] };
+  try {
+    const params = new URLSearchParams({
+      q: buildWebQuery(patient),
+      count: "10",
+      search_lang: "en",
+      country: "us",
+    });
+    const response = await fetch(`https://api.search.brave.com/res/v1/web/search?${params.toString()}`, {
+      headers: { Accept: "application/json", "X-Subscription-Token": token },
+    });
+    if (!response.ok) throw new Error(`Brave Search ${response.status}`);
+    const json = (await response.json()) as { web?: { results?: Array<{ title?: string; description?: string }> } };
+    return {
+      posts: (json.web?.results ?? [])
+        .map((result, index) => ({
+          id: `web-${index}`,
+          text: sanitizePost(`${result.title ?? ""}. ${result.description ?? ""}`),
+          source: "web" as const,
+        }))
+        .filter((post) => post.text.length > 30),
+    };
+  } catch {
+    return { posts: [] };
+  }
+}
+
+function buildXQuery(patient: PatientProfile): string {
+  return [
     patient.biomarkers[0] ?? "EGFR",
     "clinical trial",
     "(biopsy OR travel OR reimbursement OR infusion OR fatigue OR caregiver OR screening)",
     "-is:retweet",
     "lang:en",
-  ];
-  return terms.join(" ");
+  ].join(" ");
+}
+
+function buildWebQuery(patient: PatientProfile): string {
+  return [
+    "site:x.com OR site:reddit.com",
+    patient.biomarkers[0] ?? "EGFR exon 20",
+    "clinical trial",
+    "biopsy travel reimbursement infusion fatigue caregiver screening",
+  ].join(" ");
 }
 
 function sanitizePost(text: string): string {
   return text
+    .replace(/<[^>]*>/g, "")
     .replace(/@\w+/g, "")
     .replace(/https?:\/\/\S+/g, "")
+    .replace(/\b[A-Z][A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z]{2,}\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -76,7 +133,7 @@ function makeTheme(
     theme,
     sentiment: "mixed",
     signalStrength: count > 4 ? "high" : count > 1 ? "medium" : "low",
-    summary: "Public posts surfaced this as an unverified patient-experience concern to ask about, not as medical evidence.",
+    summary: "Live public snippets surfaced this as an unverified patient-experience concern to ask about, not as medical evidence.",
     coordinatorQuestion,
     sourceCount: count,
   };

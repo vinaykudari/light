@@ -139,6 +139,19 @@
 .subCard strong { display: block; font-size: 13px; }
 .subCard b { color: var(--ink); }
 
+.sourceLink {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sourceLink:hover {
+  text-decoration: underline;
+}
+
 .trialTopline { display: flex; justify-content: space-between; gap: 10px; }
 .trialTopline h3 { font-size: 15px; line-height: 1.25; }
 

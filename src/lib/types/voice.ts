@@ -1,7 +1,7 @@
 export type PatientVoicePost = {
   id: string;
   text: string;
-  source: "x" | "seed";
+  source: "x" | "web" | "seed";
 };
 
 export type PatientVoiceTheme = {

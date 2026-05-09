@@ -12,7 +12,9 @@ export function ResearchPanel({ summary }: { summary?: ResearchSummary }) {
           <List items={summary.themes} empty="No research themes available." />
           {summary.selectedPapers.slice(0, 4).map((paper) => (
             <article className={styles.subCard} key={paper.title}>
-              <strong>{paper.title}</strong>
+              <strong>
+                {paper.url ? <a className={styles.sourceLink} href={paper.url} target="_blank" rel="noreferrer">{paper.title}</a> : paper.title}
+              </strong>
               <p>{paper.source}{paper.year ? ` / ${paper.year}` : ""}</p>
               <p>{paper.relevanceReason}</p>
             </article>

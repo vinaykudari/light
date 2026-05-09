@@ -8,10 +8,13 @@ export async function searchPubMed(
   const query = buildQuery(patient, trials);
   try {
     const ids = await fetchPubMedIds(query);
-    const papers = ids.length ? await fetchPubMedSummaries(ids) : [];
+    const fallbackQuery = buildFallbackQuery(patient);
+    const retryIds = ids.length ? ids : await fetchPubMedIds(fallbackQuery);
+    const usedQuery = ids.length ? query : fallbackQuery;
+    const papers = retryIds.length ? await fetchPubMedSummaries(retryIds) : [];
     const selected = papers.slice(0, 5);
     if (selected.length === 0) return buildSummary(query, seedResearch, "mock");
-    return buildSummary(query, selected, "real");
+    return buildSummary(usedQuery, selected, "real");
   } catch {
     return buildSummary(query, seedResearch, "mock");
   }
@@ -22,6 +25,10 @@ function buildQuery(patient: PatientProfile, trials: TrialCard[]): string {
     .flatMap((trial) => trial.title.match(/[A-Z]{2,}[0-9A-Z-]*/g) ?? [])
     .slice(0, 2);
   return [`"${patient.biomarkers[0] ?? patient.diagnosis}"`, "NSCLC", ...interventions].join(" ");
+}
+
+function buildFallbackQuery(patient: PatientProfile): string {
+  return [`"${patient.biomarkers[0] ?? patient.diagnosis}"`, "NSCLC", "clinical trial"].join(" ");
 }
 
 async function fetchPubMedIds(query: string): Promise<string[]> {
