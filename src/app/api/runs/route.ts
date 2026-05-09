@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRun, listRuns, startRun } from "@/lib/runs/localRunStore";
+import { getRun, listRuns, runNow, startRun } from "@/lib/runs/localRunStore";
 import type { PatientProfileInput } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
@@ -15,6 +15,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as { patient?: PatientProfileInput };
+  if (process.env.VERCEL) {
+    const run = await runNow(body.patient ?? {});
+    return NextResponse.json(run);
+  }
   const run = startRun(body.patient ?? {});
   return NextResponse.json(run, { status: 202 });
 }

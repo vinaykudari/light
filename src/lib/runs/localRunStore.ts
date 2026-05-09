@@ -52,6 +52,15 @@ export function startRun(input: Partial<PatientProfileInput>): TrialIntelligence
   return placeholder;
 }
 
+export async function runNow(input: Partial<PatientProfileInput>): Promise<TrialIntelligenceState> {
+  const patient = normalizePatient(input);
+  let latest: TrialIntelligenceState | undefined;
+  const completed = await runTrialIntelligence(patient, (state) => {
+    latest = state;
+  });
+  return latest ?? completed;
+}
+
 function normalizePatient(input: Partial<PatientProfileInput>): PatientProfile {
   return {
     ...seedPatient,
