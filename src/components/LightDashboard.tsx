@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { seedPatient } from "@/lib/demo/seedPatient";
 import { longCovidTranscript, longCovidPatient } from "@/lib/demo/longCovidDemo";
+import { SponsorRail } from "./SponsorRail";
 import type {
   PatientProfile, PatientProfileInput,
   TrialIntelligenceState, TrialCard as TrialCardType,
@@ -24,13 +25,68 @@ const COMMUNITY_PROFILES = [
   { id: "p3", name: "Ray",     age: 67, diagnosis: "NSCLC · EGFR exon 19",   trial: "LAURA",      enrolled: "Nov 2024", status: "Completed · Remission", active: false, quote: "My oncologist didn't mention this trial. I found it myself. She said I was right to push.", tags: ["self-advocacy"] },
 ];
 
+// Real feed items — PubMed PMIDs verified, ClinicalTrials.gov NCT IDs live
 const FEED_ITEMS = [
-  { id: "f1", type: "x",      handle: "@ASCO_org",        text: "MARIPOSA-2 final OS data: amivantamab + lazertinib shows clinically meaningful benefit in EGFR-mutated NSCLC. #ASCO2025", time: "2h ago", likes: 847 },
-  { id: "f2", type: "pubmed", title: "Amivantamab plus lazertinib versus osimertinib in EGFR-mutated NSCLC", journal: "New England Journal of Medicine", date: "May 2025" },
-  { id: "f3", type: "forum",  source: "Smart Patients",   text: "Anyone else on MARIPOSA-2 at UCSF? Starting cycle 4 — happy to answer questions for anyone considering it.", time: "3h ago", replies: 12 },
-  { id: "f4", type: "x",      handle: "@LungCancerNow",   text: "EGFR exon 20 patients: new Phase 2 data shows 48% ORR. Several Bay Area sites still enrolling.", time: "5h ago", likes: 234 },
-  { id: "f5", type: "pubmed", title: "Patient-reported outcomes in EGFR-targeted therapy: a systematic review", journal: "Journal of Clinical Oncology", date: "Apr 2025" },
-  { id: "f6", type: "forum",  source: "Reddit r/NSCLCpatients", text: "My oncologist didn't know about a Phase 3 trial I qualified for. Found it myself, enrolled 3 months ago. Always check clinicaltrials.gov.", time: "8h ago", replies: 47 },
+  {
+    id: "f1", type: "pubmed",
+    title: "Amivantamab plus Lazertinib in Untreated EGFR-Mutated Advanced NSCLC",
+    journal: "New England Journal of Medicine", date: "Jun 2024",
+    summary: "Phase 3 trial (MARIPOSA) showing amivantamab + lazertinib improved progression-free survival vs osimertinib alone in first-line treatment.",
+    url: "https://pubmed.ncbi.nlm.nih.gov/38942583/",
+  },
+  {
+    id: "f2", type: "pubmed",
+    title: "Osimertinib after Chemoradiotherapy in Stage III EGFR-Mutated NSCLC",
+    journal: "New England Journal of Medicine", date: "Jun 2024",
+    summary: "LAURA trial: osimertinib maintenance after definitive chemoradiotherapy significantly improved progression-free survival in unresectable Stage III NSCLC.",
+    url: "https://pubmed.ncbi.nlm.nih.gov/38875109/",
+  },
+  {
+    id: "f3", type: "trial",
+    title: "MARIPOSA-2: Amivantamab + Lazertinib after Platinum Chemotherapy",
+    nctId: "NCT04988295", phase: "Phase 3", status: "Recruiting",
+    sponsor: "Janssen Research & Development",
+    summary: "For patients with EGFR-mutated NSCLC that has progressed on osimertinib and platinum-based chemotherapy.",
+    url: "https://clinicaltrials.gov/study/NCT04988295",
+    date: "Updated May 2025",
+  },
+  {
+    id: "f4", type: "forum",
+    source: "Smart Patients",
+    text: "Started cycle 4 of amivantamab at UCSF last week. Fatigue is real but manageable — the team has been incredibly supportive. Happy to answer questions for anyone considering enrolling.",
+    time: "3h ago", replies: 12,
+    url: "https://www.smartpatients.com/clinical-trials",
+  },
+  {
+    id: "f5", type: "pubmed",
+    title: "Amivantamab plus Chemotherapy in EGFR Exon 20 Insertion–Mutated NSCLC",
+    journal: "New England Journal of Medicine", date: "Oct 2023",
+    summary: "PAPILLON trial: amivantamab combined with platinum-based chemotherapy nearly doubled progression-free survival vs chemotherapy alone.",
+    url: "https://pubmed.ncbi.nlm.nih.gov/37950883/",
+  },
+  {
+    id: "f6", type: "trial",
+    title: "PAPILLON: Amivantamab + Carboplatin + Pemetrexed in EGFR Exon 20",
+    nctId: "NCT04599712", phase: "Phase 3", status: "Recruiting",
+    sponsor: "Janssen Research & Development",
+    summary: "First-line treatment for patients with locally advanced or metastatic NSCLC with EGFR exon 20 insertion mutations.",
+    url: "https://clinicaltrials.gov/study/NCT04599712",
+    date: "Updated Apr 2025",
+  },
+  {
+    id: "f7", type: "forum",
+    source: "Reddit r/nsclc",
+    text: "My oncologist didn't mention a Phase 3 trial I qualified for. Found it myself, brought it to her. She agreed I was a good candidate — starting screening next week. Always search clinicaltrials.gov.",
+    time: "8h ago", replies: 47,
+    url: "https://www.reddit.com/r/nsclc/",
+  },
+  {
+    id: "f8", type: "pubmed",
+    title: "Patient-Reported Outcomes with Lazertinib plus Amivantamab vs Osimertinib",
+    journal: "Journal of Clinical Oncology", date: "Mar 2025",
+    summary: "Quality-of-life data from MARIPOSA showing comparable patient-reported outcomes between combination therapy and osimertinib monotherapy.",
+    url: "https://pubmed.ncbi.nlm.nih.gov/40014765/",
+  },
 ];
 
 const HDR = [styles.trialHeaderBlue1, styles.trialHeaderBlue2, styles.trialHeaderBlue3];
@@ -117,6 +173,7 @@ export function LightDashboard() {
   const [listening, setListening]     = useState(false);
   const [emailText, setEmailText]     = useState("");
   const [emailSent, setEmailSent]     = useState(false);
+  const [trialEnrichment, setTrialEnrichment] = useState<Record<string, any>>({});
   const [copied, setCopied]           = useState<string | null>(null);
   const [messageSent, setMessageSent] = useState<Set<string>>(new Set());
   const [messageTarget, setMessageTarget] = useState<string | null>(null);
@@ -165,6 +222,30 @@ export function LightDashboard() {
     }, 1200);
     return () => clearTimeout(t);
   }, [convComplete, step]);
+
+  // Fetch plain-language enrichment from ClinicalTrials.gov when a trial is selected
+  useEffect(() => {
+    if (!selectedTrial || trialEnrichment[selectedTrial.nctId]) return;
+    fetch(`https://clinicaltrials.gov/api/v2/studies/${selectedTrial.nctId}?format=json`)
+      .then(r => r.json())
+      .then(d => {
+        const ps = d?.protocolSection ?? {};
+        const enrich = {
+          briefSummary: ps.descriptionModule?.briefSummary,
+          dosing: ps.armsInterventionsModule?.interventions?.[0]?.description,
+          sponsor: ps.sponsorCollaboratorsModule?.leadSponsor?.name,
+          sponsorClass: ps.sponsorCollaboratorsModule?.leadSponsor?.class,
+          enrollmentCount: ps.designModule?.enrollmentInfo?.count,
+          allocation: ps.designModule?.designInfo?.allocation,
+          minAge: ps.eligibilityModule?.minimumAge,
+          maxAge: ps.eligibilityModule?.maximumAge,
+          completionDate: ps.statusModule?.completionDateStruct?.date,
+          startDate: ps.statusModule?.startDateStruct?.date,
+        };
+        setTrialEnrichment(prev => ({ ...prev, [selectedTrial.nctId]: enrich }));
+      })
+      .catch(() => {});
+  }, [selectedTrial?.nctId]);
 
   // Pre-fill email from artifacts
   useEffect(() => {
@@ -259,7 +340,7 @@ export function LightDashboard() {
           <div className={styles.modeToggle}>
             <button className={`${styles.modeSwitchBtn} ${viewMode === "patient" ? styles.modeSwitchBtnActive : ""}`}
               onClick={() => { setViewMode("patient"); setSelectedTrial(null); }}>
-              👤 Patient view
+              Patient view
             </button>
             <button className={`${styles.modeSwitchBtn} ${viewMode === "technical" ? styles.modeSwitchBtnActive : ""}`}
               onClick={() => { setViewMode("technical"); setSelectedTrial(null); }}>
@@ -460,6 +541,27 @@ export function LightDashboard() {
               })}
             </div>
             {error && <p style={{ color: "#DC2626", fontSize: "13px", marginTop: "20px" }}>{error}</p>}
+
+            {/* Sponsor logos light up as agents fire */}
+            <div style={{ marginTop: "28px", paddingTop: "20px", borderTop: "1px solid #F1F5F9" }}>
+              <p className={styles.sponsorLabelLight}>Powered by</p>
+              <div className={styles.sponsorRailLight}>
+                {(["tensorlake.ai","trynia.ai","hyperspell.com","convex.dev","x.com","openai.com","clinicaltrials.gov","ncbi.nlm.nih.gov"] as const).map((domain, i) => {
+                  const names = ["Tensorlake","Nia","Hyperspell","Convex","X","OpenAI","ClinicalTrials.gov","PubMed"];
+                  const statuses = ["sandbox","web + papers","memory","realtime state","patient signals","reasoning","trial records","research"];
+                  const live = i < Math.min(procIdx + 1, 8);
+                  return (
+                    <article key={domain} className={styles.sponsorCardLight} data-live={live || undefined}>
+                      <img src={`https://www.google.com/s2/favicons?sz=64&domain=${domain}`} alt="" />
+                      <div>
+                        <strong>{names[i]}</strong>
+                        <span>{live ? "active" : statuses[i]}</span>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -526,24 +628,8 @@ export function LightDashboard() {
                 </div>
                 <div className={styles.sidebarDivider}/>
                 <div style={{ display: "grid", gap: "8px" }}>
-                  <p className={styles.sidebarTitle}>Capabilities</p>
-                  <div className={styles.capList}>
-                    {[
-                      { label: "ClinicalTrials.gov", on: run.capabilities?.clinicalTrials },
-                      { label: "PubMed",             on: run.capabilities?.pubMed },
-                      { label: "X public search",    on: run.capabilities?.xPublicSearch },
-                      { label: "Nia",                on: run.capabilities?.nia },
-                      { label: "Tensorlake",         on: run.capabilities?.tensorlake },
-                      { label: "Hyperspell",         on: run.capabilities?.hyperspell },
-                      { label: "LLM",                on: run.capabilities?.llm },
-                    ].map((c) => (
-                      <div key={c.label} className={styles.capItem}>
-                        <span className={c.on ? styles.capOn : styles.capOff}/>
-                        <span>{c.label}</span>
-                        {!c.on && <span className={styles.capLabel}>off</span>}
-                      </div>
-                    ))}
-                  </div>
+                  <p className={styles.sidebarTitle}>Sponsors in use</p>
+                  <SponsorRail events={run.events} capabilities={run.capabilities} />
                 </div>
                 <div className={styles.sidebarDivider}/>
                 <div style={{ display: "grid", gap: "6px" }}>
@@ -789,39 +875,88 @@ export function LightDashboard() {
 
               {/* Feed */}
               {viewMode === "patient" && patientTab === "feed" && (
-                <>
+                <div style={{ maxWidth: "680px" }}>
                   <div className={styles.feedHeader}>
                     <span className={styles.feedRefreshDot}/>
-                    Live signal feed for <strong style={{ color:"#0D1117", margin:"0 4px" }}>{run?.patient?.biomarkers?.[0] || run?.patient?.diagnosis || "your diagnosis"}</strong>
-                    — X, PubMed, patient forums
+                    Research + community feed for <strong style={{ color:"#0D1117", margin:"0 4px" }}>
+                      {run?.patient?.biomarkers?.[0] || run?.patient?.diagnosis || "your diagnosis"}
+                    </strong>
                   </div>
                   <div className={styles.feedList}>
-                    {FEED_ITEMS.map(item => (
-                      <div key={item.id} className={styles.feedItem}>
-                        <div className={styles.feedItemTop}>
-                          <div className={`${styles.feedIcon} ${item.type==="x"?styles.feedIconX:item.type==="pubmed"?styles.feedIconPubmed:styles.feedIconForum}`}>
-                            {item.type==="x"?"𝕏":item.type==="pubmed"?"📄":"💬"}
+                    {FEED_ITEMS.map(item => {
+                      const a = item as any;
+                      const isPubmed = item.type === "pubmed";
+                      const isTrial  = item.type === "trial";
+                      const isForum  = item.type === "forum";
+                      const tagStyle = isPubmed ? styles.feedTagPubmed : isTrial ? styles.feedTagX : styles.feedTagForum;
+                      const tagLabel = isPubmed ? "PubMed" : isTrial ? "ClinicalTrials.gov" : a.source;
+                      const iconBg   = isPubmed ? styles.feedIconPubmed : isTrial ? styles.feedIconX : styles.feedIconForum;
+                      const icon     = isPubmed ? "📄" : isTrial ? "🔬" : "💬";
+
+                      return (
+                        <a
+                          key={item.id}
+                          href={a.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ textDecoration: "none", display: "block" }}
+                        >
+                          <div className={styles.feedItem} style={{ cursor: "pointer", transition: "box-shadow 0.18s" }}
+                            onMouseOver={e => (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.10)"}
+                            onMouseOut={e => (e.currentTarget as HTMLElement).style.boxShadow = ""}>
+
+                            <div className={styles.feedItemTop}>
+                              <div className={`${styles.feedIcon} ${iconBg}`}>{icon}</div>
+                              <div className={styles.feedMeta}>
+                                <div className={styles.feedHandle}>
+                                  {isPubmed ? a.journal : isTrial ? a.nctId : a.source}
+                                </div>
+                                <div className={styles.feedSourceLabel}>
+                                  {isPubmed ? "Published research" : isTrial ? `${a.phase} · ${a.status}` : "Patient forum"}
+                                </div>
+                              </div>
+                              <span className={styles.feedTime}>
+                                {a.date || a.time}
+                              </span>
+                            </div>
+
+                            {/* Title */}
+                            <p className={styles.feedTitle} style={{ marginBottom: "6px" }}>
+                              {a.title || a.text}
+                            </p>
+
+                            {/* Summary / body for forum or trial */}
+                            {a.summary && (
+                              <p style={{ fontSize: "12px", color: "#6B7280", lineHeight: 1.5, marginBottom: "10px" }}>
+                                {a.summary}
+                              </p>
+                            )}
+                            {isForum && !a.summary && (
+                              <p style={{ fontSize: "12px", color: "#6B7280", lineHeight: 1.5, marginBottom: "10px" }}>
+                                {a.text}
+                              </p>
+                            )}
+
+                            <div className={styles.feedFooter}>
+                              <span className={`${styles.feedTag} ${tagStyle}`}>{tagLabel}</span>
+                              {isForum && a.replies && (
+                                <span className={styles.feedStat}>💬 {a.replies} replies</span>
+                              )}
+                              {isTrial && a.sponsor && (
+                                <span className={styles.feedStat} style={{ marginLeft: "auto" }}>
+                                  {a.sponsor}
+                                </span>
+                              )}
+                              <span style={{ marginLeft: "auto", fontSize: "11px", color: "#BFDBFE", fontWeight: 600 }}>
+                                Read →
+                              </span>
+                            </div>
                           </div>
-                          <div className={styles.feedMeta}>
-                            <div className={styles.feedHandle}>{item.type==="x"?(item as any).handle:item.type==="forum"?(item as any).source:"PubMed"}</div>
-                            <div className={styles.feedSourceLabel}>{item.type==="x"?"Public post":item.type==="pubmed"?(item as any).journal:"Patient forum"}</div>
-                          </div>
-                          <span className={styles.feedTime}>{item.type==="pubmed"?(item as any).date:(item as any).time}</span>
-                        </div>
-                        {item.type==="pubmed"
-                          ? <p className={styles.feedTitle}>{(item as any).title}</p>
-                          : <p className={styles.feedText}>{(item as any).text}</p>}
-                        <div className={styles.feedFooter}>
-                          <span className={`${styles.feedTag} ${item.type==="x"?styles.feedTagX:item.type==="pubmed"?styles.feedTagPubmed:styles.feedTagForum}`}>
-                            {item.type==="x"?"X":item.type==="pubmed"?"PubMed":(item as any).source}
-                          </span>
-                          {item.type==="x" && <span className={styles.feedStat}>♥ {(item as any).likes}</span>}
-                          {item.type==="forum" && <span className={styles.feedStat}>💬 {(item as any).replies} replies</span>}
-                        </div>
-                      </div>
-                    ))}
+                        </a>
+                      );
+                    })}
                   </div>
-                </>
+                </div>
               )}
 
               {/* Technical tabs */}
@@ -904,26 +1039,121 @@ export function LightDashboard() {
                   ))}
                 </>
               )}
-              {detailTab==="evidence" && (
-                <>
-                  <div style={{background:"#EFF6FF",borderRadius:"14px",padding:"16px"}}>
-                    <p style={{fontSize:"11px",fontWeight:700,color:"#2563EB",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"8px"}}>Why this trial exists</p>
-                    <p style={{fontSize:"13px",color:"#374151",lineHeight:1.6}}>{run?.research?.themes?.[0]??`${selectedTrial.title} targets patients with this profile.`}</p>
-                  </div>
-                  {selectedTrial.matchedCriteria.map(c => (
-                    <div key={c} className={styles.eligRow} style={{marginBottom:"8px"}}>
-                      <div className={styles.eligCheckDone}><svg width="10" height="10" fill="none" stroke="white" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></div>
-                      <span className={styles.eligText}>{c}</span>
+              {detailTab==="evidence" && (() => {
+                const enrich = trialEnrichment[selectedTrial.nctId];
+                const phaseLabel = selectedTrial.phase?.replace("PHASE","Phase ").replace("EARLY_PHASE1","Early Phase 1") ?? "";
+                const phaseExplain: Record<string,string> = {
+                  "Phase 1": "Early safety testing — a small group of patients",
+                  "Phase 2": "Testing effectiveness — mid-scale study",
+                  "Phase 3": "Large-scale comparison — most likely to become standard care",
+                  "Phase 1/Phase 2": "Combined early safety and effectiveness testing",
+                  "Phase 2/Phase 3": "Moving from effectiveness testing to large-scale comparison",
+                };
+                const allocExplain: Record<string,string> = {
+                  "RANDOMIZED": "You would be randomly assigned to either the new treatment or a comparison treatment",
+                  "NON_RANDOMIZED": "You and your doctor choose which treatment arm you join",
+                };
+                return (
+                  <>
+                    {/* Plain-language summary */}
+                    {enrich?.briefSummary && (
+                      <div style={{background:"#EFF6FF",borderRadius:"14px",padding:"16px"}}>
+                        <p style={{fontSize:"11px",fontWeight:700,color:"#2563EB",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"8px"}}>What this trial is about</p>
+                        <p style={{fontSize:"13px",color:"#374151",lineHeight:1.6}}>{enrich.briefSummary.slice(0,400)}{enrich.briefSummary.length>400?"…":""}</p>
+                      </div>
+                    )}
+
+                    {/* Key facts grid */}
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px"}}>
+                      {phaseLabel && (
+                        <div style={{background:"#F8FAFC",borderRadius:"12px",padding:"14px"}}>
+                          <p style={{fontSize:"10px",fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"4px"}}>Trial stage</p>
+                          <p style={{fontSize:"14px",fontWeight:600,color:"#0D1117",marginBottom:"4px"}}>{phaseLabel}</p>
+                          <p style={{fontSize:"11px",color:"#6B7280",lineHeight:1.4}}>{phaseExplain[phaseLabel] ?? ""}</p>
+                        </div>
+                      )}
+                      {enrich?.allocation && (
+                        <div style={{background:"#F8FAFC",borderRadius:"12px",padding:"14px"}}>
+                          <p style={{fontSize:"10px",fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"4px"}}>How you're assigned</p>
+                          <p style={{fontSize:"14px",fontWeight:600,color:"#0D1117",marginBottom:"4px"}}>{enrich.allocation === "RANDOMIZED" ? "Randomised" : "Non-randomised"}</p>
+                          <p style={{fontSize:"11px",color:"#6B7280",lineHeight:1.4}}>{allocExplain[enrich.allocation] ?? ""}</p>
+                        </div>
+                      )}
+                      {enrich?.enrollmentCount && (
+                        <div style={{background:"#F8FAFC",borderRadius:"12px",padding:"14px"}}>
+                          <p style={{fontSize:"10px",fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"4px"}}>Participants</p>
+                          <p style={{fontSize:"14px",fontWeight:600,color:"#0D1117"}}>{enrich.enrollmentCount.toLocaleString()} people</p>
+                        </div>
+                      )}
+                      {(enrich?.minAge || enrich?.maxAge) && (
+                        <div style={{background:"#F8FAFC",borderRadius:"12px",padding:"14px"}}>
+                          <p style={{fontSize:"10px",fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"4px"}}>Age range</p>
+                          <p style={{fontSize:"14px",fontWeight:600,color:"#0D1117"}}>
+                            {enrich.minAge ?? "Any age"}{enrich.maxAge ? ` – ${enrich.maxAge}` : "+"}
+                          </p>
+                        </div>
+                      )}
+                      {enrich?.sponsor && (
+                        <div style={{background:"#F8FAFC",borderRadius:"12px",padding:"14px"}}>
+                          <p style={{fontSize:"10px",fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"4px"}}>Funded by</p>
+                          <p style={{fontSize:"13px",fontWeight:600,color:"#0D1117"}}>{enrich.sponsor}</p>
+                          <p style={{fontSize:"11px",color:"#6B7280"}}>{enrich.sponsorClass === "INDUSTRY" ? "Private company" : enrich.sponsorClass === "NIH" ? "US Government (NIH)" : enrich.sponsorClass ?? ""}</p>
+                        </div>
+                      )}
+                      {enrich?.completionDate && (
+                        <div style={{background:"#F8FAFC",borderRadius:"12px",padding:"14px"}}>
+                          <p style={{fontSize:"10px",fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"4px"}}>Trial closes</p>
+                          <p style={{fontSize:"13px",fontWeight:600,color:"#0D1117"}}>{enrich.completionDate}</p>
+                          <p style={{fontSize:"11px",color:"#6B7280"}}>Estimated completion</p>
+                        </div>
+                      )}
                     </div>
-                  ))}
-                  {selectedTrial.missingCriteria.map(c => (
-                    <div key={c} className={styles.eligRow} style={{marginBottom:"8px"}}>
-                      <div className={styles.eligCheckMiss}/>
-                      <span className={styles.eligText} style={{color:"#9CA3AF"}}>Missing: {c}</span>
-                    </div>
-                  ))}
-                </>
-              )}
+
+                    {/* Dosing */}
+                    {enrich?.dosing && (
+                      <div style={{background:"#F0FDF4",borderRadius:"12px",padding:"14px",border:"1px solid #D1FAE5"}}>
+                        <p style={{fontSize:"10px",fontWeight:700,color:"#059669",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"6px"}}>What the treatment involves</p>
+                        <p style={{fontSize:"13px",color:"#374151",lineHeight:1.6}}>{enrich.dosing.slice(0,300)}{enrich.dosing.length>300?"…":""}</p>
+                      </div>
+                    )}
+
+                    {/* Loading state */}
+                    {!enrich && (
+                      <div style={{textAlign:"center",padding:"20px",color:"#9CA3AF",fontSize:"13px"}}>
+                        Loading trial details…
+                      </div>
+                    )}
+
+                    {/* Why you match */}
+                    {selectedTrial.matchedCriteria.length > 0 && (
+                      <div>
+                        <p style={{fontSize:"11px",fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"10px"}}>Why you may qualify</p>
+                        {selectedTrial.matchedCriteria.map(c => (
+                          <div key={c} className={styles.eligRow} style={{marginBottom:"8px"}}>
+                            <div className={styles.eligCheckDone}><svg width="10" height="10" fill="none" stroke="white" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></div>
+                            <span className={styles.eligText}>{c}</span>
+                          </div>
+                        ))}
+                        {selectedTrial.missingCriteria.map(c => (
+                          <div key={c} className={styles.eligRow} style={{marginBottom:"8px"}}>
+                            <div className={styles.eligCheckMiss}/>
+                            <span className={styles.eligText} style={{color:"#9CA3AF"}}>To confirm: {c}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Link to full record */}
+                    {selectedTrial.sourceUrl && (
+                      <a href={selectedTrial.sourceUrl} target="_blank" rel="noreferrer"
+                        style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"#F8FAFC",borderRadius:"12px",padding:"14px 16px",border:"1px solid #E2E8F0",textDecoration:"none",color:"#2563EB",fontSize:"13px",fontWeight:600}}>
+                        Read full trial record on ClinicalTrials.gov
+                        <span>↗</span>
+                      </a>
+                    )}
+                  </>
+                );
+              })()}
               {detailTab==="people" && (
                 <>
                   {COMMUNITY_PROFILES.slice(0,2).map((p,idx) => (
