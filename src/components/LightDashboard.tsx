@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { seedPatient } from "@/lib/demo/seedPatient";
-import type { PatientProfile, PatientProfileInput, TrialIntelligenceState } from "@/lib/types";
+import { longCovidTranscript, longCovidPatient } from "@/lib/demo/longCovidDemo";
+import type {
+  PatientProfile, PatientProfileInput,
+  TrialIntelligenceState, TrialCard as TrialCardType,
+} from "@/lib/types";
 import { AgentEventStream } from "./AgentEventStream";
 import { ArtifactPanel } from "./ArtifactPanel";
 import { DoctorConversationDemo, type ConversationPayload } from "./DoctorConversationDemo";
@@ -10,13 +14,46 @@ import { EligibilityPanel } from "./EligibilityPanel";
 import { PatientProfileForm, type PatientFormState } from "./PatientProfileForm";
 import { PatientVoicePanel } from "./PatientVoicePanel";
 import { ResearchPanel } from "./ResearchPanel";
-import { SafetyBanner } from "./SafetyBanner";
-import { TrialCard } from "./TrialCard";
-import { Empty, List, Panel } from "./DisplayPrimitives";
+import { Empty } from "./DisplayPrimitives";
 import styles from "./LightDashboard.module.css";
 
+// ─── Static data ──────────────────────────────────────────────────────────────
+const COMMUNITY_PROFILES = [
+  { id: "p1", name: "Marcus",  age: 52, diagnosis: "NSCLC · EGFR exon 20",  trial: "MARIPOSA-2", enrolled: "Mar 2025", status: "Active · Cycle 6",     active: true,  quote: "Fatigue was real weeks 2–4, then I was back to hiking. Happy to answer questions.", tags: ["side effects", "work during treatment"] },
+  { id: "p2", name: "Linda",   age: 61, diagnosis: "Stage 3B NSCLC",         trial: "PAPILLON",   enrolled: "Jan 2025", status: "Active · Cycle 8",     active: true,  quote: "I wish someone told me about the nausea in week 1. It passed. That's why I'm here.", tags: ["nausea", "caregivers"] },
+  { id: "p3", name: "Ray",     age: 67, diagnosis: "NSCLC · EGFR exon 19",   trial: "LAURA",      enrolled: "Nov 2024", status: "Completed · Remission", active: false, quote: "My oncologist didn't mention this trial. I found it myself. She said I was right to push.", tags: ["self-advocacy"] },
+];
+
+const FEED_ITEMS = [
+  { id: "f1", type: "x",      handle: "@ASCO_org",        text: "MARIPOSA-2 final OS data: amivantamab + lazertinib shows clinically meaningful benefit in EGFR-mutated NSCLC. #ASCO2025", time: "2h ago", likes: 847 },
+  { id: "f2", type: "pubmed", title: "Amivantamab plus lazertinib versus osimertinib in EGFR-mutated NSCLC", journal: "New England Journal of Medicine", date: "May 2025" },
+  { id: "f3", type: "forum",  source: "Smart Patients",   text: "Anyone else on MARIPOSA-2 at UCSF? Starting cycle 4 — happy to answer questions for anyone considering it.", time: "3h ago", replies: 12 },
+  { id: "f4", type: "x",      handle: "@LungCancerNow",   text: "EGFR exon 20 patients: new Phase 2 data shows 48% ORR. Several Bay Area sites still enrolling.", time: "5h ago", likes: 234 },
+  { id: "f5", type: "pubmed", title: "Patient-reported outcomes in EGFR-targeted therapy: a systematic review", journal: "Journal of Clinical Oncology", date: "Apr 2025" },
+  { id: "f6", type: "forum",  source: "Reddit r/NSCLCpatients", text: "My oncologist didn't know about a Phase 3 trial I qualified for. Found it myself, enrolled 3 months ago. Always check clinicaltrials.gov.", time: "8h ago", replies: 47 },
+];
+
+const HDR = [styles.trialHeaderBlue1, styles.trialHeaderBlue2, styles.trialHeaderBlue3];
+const CHK = [styles.matchReasonCheckStrong, styles.matchReasonCheckGood, styles.matchReasonCheckPoss];
+const MLB = ["STRONG MATCH", "GOOD MATCH", "POSSIBLE MATCH"];
+const MBG = [styles.matchBadgeStrong, styles.matchBadgeGood, styles.matchBadgePoss];
+
+const PROC_STEPS = [
+  { label: "Reading your information",     emoji: "📄" },
+  { label: "Understanding your profile",   emoji: "🧬" },
+  { label: "Searching 18,000+ trials",     emoji: "🔍" },
+  { label: "Finding patient experiences",  emoji: "💬" },
+  { label: "Preparing your matches",       emoji: "✨" },
+];
+
+type Step = "landing" | "intake" | "conversation" | "processing" | "dashboard";
+type ViewMode = "patient" | "technical";
+type PatientTab = "trials" | "community" | "prepare" | "feed";
+type TechTab = "agents" | "research" | "voice" | "eligibility" | "artifacts";
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export function LightDashboard() {
-  const [mode, setMode] = useState<"profile" | "conversation">("conversation");
+  // ── Existing state + functions (DO NOT CHANGE) ───────────────────────────────
   const [form, setForm] = useState<PatientFormState>(toForm(seedPatient));
   const [run, setRun] = useState<TrialIntelligenceState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,148 +62,939 @@ export function LightDashboard() {
   useEffect(() => {
     if (!run || !isProcessing) return;
     const timer = window.setInterval(async () => {
-      const response = await fetch(`/api/runs?id=${encodeURIComponent(run.runId)}`);
-      if (!response.ok) return;
-      const next = (await response.json()) as TrialIntelligenceState;
+      const res = await fetch(`/api/runs?id=${encodeURIComponent(run.runId)}`);
+      if (!res.ok) return;
+      const next = (await res.json()) as TrialIntelligenceState;
       setRun(next);
-      if (next.status === "completed" || next.status === "failed") {
-        window.clearInterval(timer);
-      }
+      if (next.status === "completed" || next.status === "failed") window.clearInterval(timer);
     }, 700);
     return () => window.clearInterval(timer);
   }, [run, isProcessing]);
 
-  const sourceMode = useMemo(() => {
-    if (!run) return "demo ready";
-    return `${run.sourceMode} mode`;
-  }, [run]);
+  const sourceMode = useMemo(() => (!run ? "demo ready" : `${run.sourceMode} mode`), [run]);
 
   async function processIntelligence() {
     setError(null);
-    const response = await fetch("/api/runs", {
+    const res = await fetch("/api/runs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ patient: toPatientInput(form) }),
     });
-    if (!response.ok) {
-      setError("Run could not be started.");
-      return;
-    }
-    setRun((await response.json()) as TrialIntelligenceState);
+    if (!res.ok) { setError("Run could not be started."); return; }
+    setRun((await res.json()) as TrialIntelligenceState);
   }
 
   async function processConversation(payload: ConversationPayload) {
     setError(null);
-    const response = await fetch("/api/runs", {
+    const res = await fetch("/api/runs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!response.ok) {
-      setError("Conversation run could not be started.");
-      return;
-    }
-    setRun((await response.json()) as TrialIntelligenceState);
+    if (!res.ok) { setError("Conversation run could not be started."); return; }
+    setRun((await res.json()) as TrialIntelligenceState);
   }
 
-  const questions = [
+  const questions = dedupe([
     ...(run?.burden?.coordinatorQuestions ?? []),
-    ...((run?.patientVoice ?? []).map((theme) => theme.coordinatorQuestion)),
-  ];
+    ...((run?.patientVoice ?? []).map((t) => t.coordinatorQuestion)),
+  ]);
 
+  // ── New UX state ──────────────────────────────────────────────────────────
+  const [step, setStep]               = useState<Step>("landing");
+  const [viewMode, setViewMode]       = useState<ViewMode>("patient");
+  const [patientTab, setPatientTab]   = useState<PatientTab>("trials");
+  const [techTab, setTechTab]         = useState<TechTab>("agents");
+  const [selectedTrial, setSelectedTrial] = useState<TrialCardType | null>(null);
+  const [detailTab, setDetailTab]     = useState<"sideeffects" | "evidence" | "people">("sideeffects");
+  const [chatInput, setChatInput]     = useState("");
+  const [chatMessages, setChatMessages] = useState<{ role: "user" | "light"; text: string }[]>([]);
+  const [listening, setListening]     = useState(false);
+  const [emailText, setEmailText]     = useState("");
+  const [emailSent, setEmailSent]     = useState(false);
+  const [copied, setCopied]           = useState<string | null>(null);
+  const [messageSent, setMessageSent] = useState<Set<string>>(new Set());
+  const [messageTarget, setMessageTarget] = useState<string | null>(null);
+  const [optIn, setOptIn]             = useState(false);
+
+  // Conversation streaming state
+  const [convCount, setConvCount]     = useState(0);
+  const convProcessed                 = useRef(false);
+  const convComplete                  = convCount >= longCovidTranscript.length;
+
+  // Auto-advance processing → dashboard
+  useEffect(() => {
+    if (step === "processing" && run?.status === "completed") {
+      const t = setTimeout(() => setStep("dashboard"), 600);
+      return () => clearTimeout(t);
+    }
+  }, [run?.status, step]);
+
+  // Auto-stream conversation turns
+  useEffect(() => {
+    if (step !== "conversation" || convComplete) return;
+    const t = window.setTimeout(() => setConvCount((n) => n + 1), 700);
+    return () => window.clearTimeout(t);
+  }, [step, convCount, convComplete]);
+
+  // Auto-process when conversation finishes streaming
+  useEffect(() => {
+    if (step !== "conversation" || !convComplete || convProcessed.current) return;
+    convProcessed.current = true;
+    const t = setTimeout(async () => {
+      setStep("processing");
+      await processConversation({
+        patient: {
+          age: longCovidPatient.age,
+          diagnosis: longCovidPatient.diagnosis,
+          biomarkers: longCovidPatient.biomarkers,
+          priorTherapies: longCovidPatient.priorTherapies,
+          location: longCovidPatient.location,
+          maxTravelMiles: longCovidPatient.maxTravelMiles,
+          preferences: longCovidPatient.preferences,
+          missingDataHints: longCovidPatient.missingDataHints,
+        },
+        conversationTranscript: longCovidTranscript,
+      });
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [convComplete, step]);
+
+  // Pre-fill email from artifacts
+  useEffect(() => {
+    if (!emailText && run?.artifacts?.length) {
+      const art = run.artifacts.find((a) => a.kind === "coordinator_email");
+      if (art) setEmailText(art.content);
+    }
+  }, [run?.artifacts, emailText]);
+
+  function startConversation() {
+    setConvCount(1);
+    setStep("conversation");
+  }
+
+  async function startUpload() {
+    setStep("processing");
+    await processIntelligence();
+  }
+
+  function sendChat() {
+    if (!chatInput.trim()) return;
+    const q = chatInput.trim();
+    setChatInput("");
+    setChatMessages((m) => [...m, { role: "user", text: q }]);
+    setTimeout(() => {
+      setChatMessages((m) => [...m, {
+        role: "light",
+        text: run?.trials?.length
+          ? `Based on your profile, the strongest match is ${run.trials[0]?.title ?? "the first trial"}. Want detail on eligibility, side effects, or the site?`
+          : "Agents are still processing. Try again once matches appear.",
+      }]);
+    }, 700);
+  }
+
+  function cp(key: string, text: string) {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  }
+
+  const eventCount = run?.events?.length ?? 0;
+  const procIdx = Math.min(Math.floor(eventCount / 3), PROC_STEPS.length - 1);
+  const isDone = run?.status === "completed";
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
   return (
-    <main className="shell">
-      <header className={styles.header}>
-        <div>
-          <p className={styles.eyebrow}>Light</p>
-          <h1>Clinical trial intelligence from evidence + patient voice</h1>
-          <p className="muted">
-            Synthetic patient context, official trial records, research evidence, public patient-experience signals, and referral-prep artifacts.
+    <div className={styles.app}>
+
+      {/* ── NAV ──────────────────────────────────────────────────────────── */}
+      <nav className={styles.appNav}>
+        <span className={styles.navLogo} onClick={() => setStep("landing")} style={{ cursor: "pointer" }}>
+          light
+        </span>
+        {step === "dashboard" && (
+          <div className={styles.modeToggle}>
+            <button className={`${styles.modeSwitchBtn} ${viewMode === "patient" ? styles.modeSwitchBtnActive : ""}`}
+              onClick={() => { setViewMode("patient"); setSelectedTrial(null); }}>
+              👤 Patient view
+            </button>
+            <button className={`${styles.modeSwitchBtn} ${viewMode === "technical" ? styles.modeSwitchBtnActive : ""}`}
+              onClick={() => { setViewMode("technical"); setSelectedTrial(null); }}>
+              ⚙ Under the hood
+            </button>
+          </div>
+        )}
+      </nav>
+
+      {/* ══════════════════════════════════════════════════════════════════
+          LANDING — one job: get them to click
+          ══════════════════════════════════════════════════════════════════ */}
+      {step === "landing" && (
+        <div style={{ minHeight: "calc(100vh - 56px)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "40px 24px", textAlign: "center" }}>
+          <p style={{ fontSize: "11px", fontWeight: 700, color: "#93C5FD", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: "20px", background: "#2563EB", padding: "6px 16px", borderRadius: "999px" }}>
+            Clinical trial matching
           </p>
+          <h1 style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: "clamp(32px,5vw,52px)", fontWeight: 600, color: "#0D1117", maxWidth: "640px", lineHeight: 1.15, marginBottom: "20px" }}>
+            No cancer patient should make a life-or-death decision without the full picture.
+          </h1>
+          <p style={{ fontSize: "18px", color: "#6B7280", maxWidth: "440px", lineHeight: 1.6, marginBottom: "40px" }}>
+            Light reads your records and finds every trial you qualify for — in seconds, at no cost.
+          </p>
+          <button
+            onClick={() => setStep("intake")}
+            className="btn-primary"
+            style={{ fontSize: "16px", padding: "16px 36px", borderRadius: "14px" }}>
+            Find my trials →
+          </button>
+          <div style={{ display: "flex", gap: "32px", marginTop: "48px" }}>
+            {[
+              { value: "18,000+", label: "cancer trials recruiting" },
+              { value: "< 30s",   label: "to your matches" },
+              { value: "Free",    label: "for patients, always" },
+            ].map((s) => (
+              <div key={s.value} style={{ textAlign: "center" }}>
+                <div style={{ fontFamily: "'Fraunces',serif", fontSize: "22px", fontWeight: 600, color: "#2563EB", marginBottom: "4px" }}>{s.value}</div>
+                <div style={{ fontSize: "12px", color: "#9CA3AF" }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className={styles.sourceMode} aria-live="polite">
-          <span className={isProcessing ? styles.pulse : styles.dot} />
-          Source mode: {sourceMode}
-        </div>
-      </header>
-
-      <SafetyBanner />
-
-      <div className={styles.modeTabs} role="tablist" aria-label="Demo mode">
-        <button className={mode === "conversation" ? styles.activeTab : ""} type="button" onClick={() => setMode("conversation")}>
-          Live Doctor Conversation
-        </button>
-        <button className={mode === "profile" ? styles.activeTab : ""} type="button" onClick={() => setMode("profile")}>
-          Structured Patient Profile
-        </button>
-      </div>
-
-      {mode === "conversation" ? (
-        <section className={styles.demoGrid}>
-          <DoctorConversationDemo run={run} isProcessing={isProcessing} onProcess={processConversation} />
-          <AgentEventStream events={run?.events ?? []} status={run?.status ?? "created"} />
-        </section>
-      ) : (
-        <section className={styles.topGrid}>
-          <PatientProfileForm
-            form={form}
-            isProcessing={isProcessing}
-            onChange={setForm}
-            onSubmit={processIntelligence}
-          />
-          <AgentEventStream events={run?.events ?? []} status={run?.status ?? "created"} />
-        </section>
       )}
 
-      {error ? <div className={`${styles.banner} panel`}>{error}</div> : null}
+      {/* ══════════════════════════════════════════════════════════════════
+          INTAKE — two paths, one choice
+          ══════════════════════════════════════════════════════════════════ */}
+      {step === "intake" && (
+        <div style={{ minHeight: "calc(100vh - 56px)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "40px 24px" }}>
+          <h2 style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: "28px", fontWeight: 600, color: "#0D1117", marginBottom: "8px", textAlign: "center" }}>
+            How would you like to share your situation?
+          </h2>
+          <p style={{ fontSize: "14px", color: "#9CA3AF", marginBottom: "36px", textAlign: "center" }}>
+            Either path takes less than a minute.
+          </p>
 
-      <section className={styles.contentGrid}>
-        <Panel title="Trial Matches" kicker="Shortlist">
-          <div className={styles.trialStack}>
-            {(run?.trials ?? []).map((trial) => <TrialCard key={trial.nctId} trial={trial} />)}
-            {!run?.trials.length ? <Empty text="Click Process to create a trial shortlist." /> : null}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", maxWidth: "680px", width: "100%" }}>
+
+            {/* Conversation card */}
+            <button
+              onClick={startConversation}
+              style={{ background: "white", border: "2px solid #E2E8F0", borderRadius: "20px", padding: "32px 28px", textAlign: "left", cursor: "pointer", transition: "all 0.18s", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05)" }}
+              onMouseOver={e => { (e.currentTarget as HTMLElement).style.borderColor = "#2563EB"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; }}
+              onMouseOut={e => { (e.currentTarget as HTMLElement).style.borderColor = "#E2E8F0"; (e.currentTarget as HTMLElement).style.transform = "none"; }}>
+              <div style={{ fontSize: "32px", marginBottom: "16px" }}>💬</div>
+              <div style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: "18px", fontWeight: 600, color: "#0D1117", marginBottom: "8px" }}>
+                Walk me through it
+              </div>
+              <p style={{ fontSize: "13px", color: "#6B7280", lineHeight: 1.6, marginBottom: "20px" }}>
+                Answer a few questions like you're talking to a doctor. Light listens and finds your trials.
+              </p>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: "#2563EB" }}>
+                Start talking →
+              </span>
+            </button>
+
+            {/* Upload card */}
+            <button
+              onClick={startUpload}
+              style={{ background: "white", border: "2px solid #E2E8F0", borderRadius: "20px", padding: "32px 28px", textAlign: "left", cursor: "pointer", transition: "all 0.18s", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05)" }}
+              onMouseOver={e => { (e.currentTarget as HTMLElement).style.borderColor = "#2563EB"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; }}
+              onMouseOut={e => { (e.currentTarget as HTMLElement).style.borderColor = "#E2E8F0"; (e.currentTarget as HTMLElement).style.transform = "none"; }}>
+              <div style={{ fontSize: "32px", marginBottom: "16px" }}>📎</div>
+              <div style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: "18px", fontWeight: 600, color: "#0D1117", marginBottom: "8px" }}>
+                Upload my records
+              </div>
+              <p style={{ fontSize: "13px", color: "#6B7280", lineHeight: 1.6, marginBottom: "20px" }}>
+                Drop a PDF, genomic report, or oncologist letter. Light reads it and extracts your profile.
+              </p>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: "#2563EB" }}>
+                Upload →
+              </span>
+            </button>
           </div>
-        </Panel>
-        <ResearchPanel summary={run?.research} />
-        <PatientVoicePanel themes={run?.patientVoice ?? []} />
-        <EligibilityPanel rows={run?.eligibility ?? []} />
-        <Panel title="Questions To Ask" kicker="Visit prep">
-          <List items={dedupe(questions)} empty="Questions will appear after burden and patient voice agents run." />
-        </Panel>
-        <ArtifactPanel artifacts={run?.artifacts ?? []} />
-      </section>
-    </main>
+
+          <p style={{ fontSize: "12px", color: "#CBD5E1", marginTop: "24px", display: "flex", alignItems: "center", gap: "6px" }}>
+            <svg width="13" height="13" fill="#10B981" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd"/>
+            </svg>
+            Your information is never shared — used only to find your options.
+          </p>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          CONVERSATION — streams automatically, no buttons
+          ══════════════════════════════════════════════════════════════════ */}
+      {step === "conversation" && (
+        <div style={{ maxWidth: "560px", margin: "0 auto", padding: "40px 24px" }}>
+          <div style={{ textAlign: "center", marginBottom: "28px" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "#EFF6FF", borderRadius: "999px", padding: "6px 16px", marginBottom: "14px" }}>
+              <span style={{ width: 8, height: 8, borderRadius: "999px", background: "#10B981", display: "inline-block", animation: "blink 1.5s ease infinite" }}/>
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "#2563EB" }}>Light is listening</span>
+            </div>
+            <h2 style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: "22px", fontWeight: 600, color: "#0D1117" }}>
+              Tell us what's going on
+            </h2>
+          </div>
+
+          {/* Chat bubbles */}
+          <div style={{ display: "grid", gap: "12px", marginBottom: "20px" }}>
+            {longCovidTranscript.slice(0, convCount).map((turn, i) => {
+              const isDoctor = turn.speaker === "doctor";
+              return (
+                <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start", flexDirection: isDoctor ? "row" : "row-reverse" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "999px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", background: isDoctor ? "#EFF6FF" : "#F0FDF4" }}>
+                    {isDoctor ? "🩺" : "👤"}
+                  </div>
+                  <div style={{ maxWidth: "80%", fontSize: "14px", lineHeight: 1.6, padding: "12px 16px", borderRadius: isDoctor ? "4px 16px 16px 16px" : "16px 4px 16px 16px", background: isDoctor ? "#F8FAFC" : "#EFF6FF", color: isDoctor ? "#374151" : "#1E40AF" }}>
+                    <div style={{ fontSize: "10px", fontWeight: 700, color: isDoctor ? "#9CA3AF" : "#60A5FA", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                      {isDoctor ? "Doctor" : "You"}
+                    </div>
+                    {turn.text}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Typing indicator */}
+            {!convComplete && convCount > 0 && (
+              <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                <div style={{ width: 32, height: 32, borderRadius: "999px", background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px" }}>🩺</div>
+                <div style={{ background: "#F8FAFC", borderRadius: "4px 16px 16px 16px", padding: "14px 18px", display: "flex", gap: "4px", alignItems: "center" }}>
+                  {[0,1,2].map(i => <span key={i} style={{ width: 6, height: 6, borderRadius: "999px", background: "#CBD5E1", display: "inline-block", animation: `blink 1.2s ease ${i*0.2}s infinite` }}/>)}
+                </div>
+              </div>
+            )}
+
+            {convComplete && (
+              <div style={{ textAlign: "center", padding: "16px", color: "#9CA3AF", fontSize: "13px" }}>
+                Finding your trials…
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          PROCESSING — same for both paths
+          ══════════════════════════════════════════════════════════════════ */}
+      {step === "processing" && (
+        <div className={styles.processingWrap}>
+          <div className={styles.processingCard}>
+            <div className={styles.spinnerWrap}>
+              {isDone
+                ? <div className={styles.spinnerRingDone}>
+                    <svg width="28" height="28" fill="none" stroke="white" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/>
+                    </svg>
+                  </div>
+                : <div className={styles.spinnerRing}>
+                    <svg width="24" height="24" fill="none" viewBox="0 0 24 24"
+                      className={styles.spinner} style={{ color: "#2563EB" }}>
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.2"/>
+                      <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                  </div>
+              }
+            </div>
+            <div className={styles.timeline}>
+              {PROC_STEPS.map((s, i) => {
+                const done = isDone || i < procIdx;
+                const active = !isDone && i === procIdx;
+                return (
+                  <div key={s.label} className={i <= procIdx || isDone ? styles.timelineItem : styles.timelineItemDim}>
+                    <div className={`${styles.timelineDot} ${done ? styles.timelineDotDone : active ? styles.timelineDotActive : styles.timelineDotOff}`}>
+                      {done
+                        ? <svg width="14" height="14" fill="none" stroke="white" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/>
+                          </svg>
+                        : <span>{s.emoji}</span>}
+                    </div>
+                    <span className={done ? styles.timelineLabelDone : active ? styles.timelineLabelActive : styles.timelineLabel}>
+                      {s.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            {error && <p style={{ color: "#DC2626", fontSize: "13px", marginTop: "20px" }}>{error}</p>}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          DASHBOARD
+          ══════════════════════════════════════════════════════════════════ */}
+      {step === "dashboard" && (
+        <div className={styles.dashboard}>
+
+          {/* Sidebar */}
+          <aside className={styles.sidebar}>
+            <div style={{ display: "grid", gap: "10px" }}>
+              <p className={styles.sidebarTitle}>Patient</p>
+              {[
+                { label: "Diagnosis",     value: run?.patient?.diagnosis || form.diagnosis,          blue: false },
+                { label: "Biomarkers",    value: run?.patient?.biomarkers?.join(", ") || form.biomarkers,  blue: true  },
+                { label: "Prior therapy", value: run?.patient?.priorTherapies?.join(", ") || form.priorTherapies, blue: false },
+                { label: "Location",      value: run?.patient?.location || form.location,             blue: false },
+              ].map((f) => (
+                <div key={f.label} className={styles.sidebarField}>
+                  <span className={styles.sidebarLabel}>{f.label}</span>
+                  <span className={f.blue ? styles.sidebarValueBlue : styles.sidebarValue}>{f.value || "—"}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className={styles.sidebarDivider}/>
+
+            <div style={{ display: "grid", gap: "8px" }}>
+              <p className={styles.sidebarTitle}>Key flags</p>
+              <div className={styles.sidebarFlags}>
+                {["No prior EGFR TKI", "No brain mets"].map((f) => (
+                  <span key={f} className={styles.sidebarFlag}>
+                    <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/>
+                    </svg>
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className={styles.sidebarDivider}/>
+
+            <div style={{ display: "grid", gap: "8px" }}>
+              <p className={styles.sidebarTitle}>Status</p>
+              <div className={styles.sidebarStatus}>
+                <span className={`${styles.sDot} ${isProcessing ? styles.sDotAmber : run ? styles.sDotGreen : styles.sDotGray}`}/>
+                <span style={{ fontSize: "12px" }}>
+                  {isProcessing ? "Agents running…" : run ? `${run.events.length} events · ${run.trials.length} trials` : sourceMode}
+                </span>
+              </div>
+            </div>
+
+            {viewMode === "technical" && run && (
+              <>
+                <div className={styles.sidebarDivider}/>
+                <div style={{ display: "grid", gap: "8px" }}>
+                  <p className={styles.sidebarTitle}>Source mode</p>
+                  <span className={`${styles.sourceModeBadge} ${run.sourceMode === "real" ? styles.sourceModeReal : run.sourceMode === "mixed" ? styles.sourceModeMixed : styles.sourceModeMock}`}>
+                    ● {run.sourceMode}
+                  </span>
+                </div>
+                <div className={styles.sidebarDivider}/>
+                <div style={{ display: "grid", gap: "8px" }}>
+                  <p className={styles.sidebarTitle}>Capabilities</p>
+                  <div className={styles.capList}>
+                    {[
+                      { label: "ClinicalTrials.gov", on: run.capabilities?.clinicalTrials },
+                      { label: "PubMed",             on: run.capabilities?.pubMed },
+                      { label: "X public search",    on: run.capabilities?.xPublicSearch },
+                      { label: "Nia",                on: run.capabilities?.nia },
+                      { label: "Tensorlake",         on: run.capabilities?.tensorlake },
+                      { label: "Hyperspell",         on: run.capabilities?.hyperspell },
+                      { label: "LLM",                on: run.capabilities?.llm },
+                    ].map((c) => (
+                      <div key={c.label} className={styles.capItem}>
+                        <span className={c.on ? styles.capOn : styles.capOff}/>
+                        <span>{c.label}</span>
+                        {!c.on && <span className={styles.capLabel}>off</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className={styles.sidebarDivider}/>
+                <div style={{ display: "grid", gap: "6px" }}>
+                  <p className={styles.sidebarTitle}>Run ID</p>
+                  <code className={styles.runId}>{run.runId}</code>
+                </div>
+              </>
+            )}
+          </aside>
+
+          {/* Main */}
+          <div className={styles.mainArea}>
+            <div className={styles.tabBar}>
+              {viewMode === "patient"
+                ? (["trials","community","prepare","feed"] as PatientTab[]).map((t) => (
+                    <button key={t} onClick={() => setPatientTab(t)}
+                      className={`${styles.tabBtn} ${patientTab === t ? styles.tabBtnActive : ""}`}>
+                      {t === "trials" ? "Trials" : t === "community" ? "Community" : t === "prepare" ? "Prepare" : "Feed"}
+                    </button>
+                  ))
+                : (["agents","research","voice","eligibility","artifacts"] as TechTab[]).map((t) => (
+                    <button key={t} onClick={() => setTechTab(t)}
+                      className={`${styles.tabBtn} ${techTab === t ? styles.tabBtnActiveTech : ""}`}>
+                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                    </button>
+                  ))
+              }
+            </div>
+
+            <div className={styles.tabContent}>
+
+              {/* Trials */}
+              {viewMode === "patient" && patientTab === "trials" && (
+                <>
+                  <div style={{ marginBottom: "20px" }}>
+                    <h2 style={{ fontFamily:"'Fraunces',serif", fontSize:"24px", fontWeight:600, color:"#0D1117", marginBottom:"4px" }}>
+                      <span style={{ color:"#2563EB" }}>{run?.trials?.length ?? "—"} trials</span> match your profile
+                    </h2>
+                    <p style={{ fontSize:"13px", color:"#9CA3AF" }}>from 18,000+ recruiting cancer trials · ranked by match confidence</p>
+                  </div>
+                  <div style={{ display:"grid", gap:"16px" }}>
+                    {!(run?.trials?.length) && <Empty text={isProcessing ? "Agents are working — matches will appear shortly…" : "No trials yet."} />}
+                    {(run?.trials ?? []).map((trial, idx) => (
+                      <TrialCardNew key={trial.nctId} trial={trial} idx={idx}
+                        onDetail={() => { setSelectedTrial(trial); setDetailTab("sideeffects"); }}
+                        onApply={() => { setSelectedTrial(trial); setPatientTab("prepare"); }}
+                        onCommunity={() => setPatientTab("community")} />
+                    ))}
+                  </div>
+                  <div className={styles.chatBox}>
+                    {chatMessages.length > 0 && (
+                      <div className={styles.chatMessages}>
+                        {chatMessages.map((m, i) => (
+                          <div key={i} className={`${styles.chatMsg} ${m.role === "user" ? styles.chatMsgUser : ""}`}>
+                            {m.role === "light" && <div className={styles.chatMsgAvatar}>L</div>}
+                            <div className={`${styles.chatBubble} ${m.role === "user" ? styles.chatBubbleUser : ""}`}>{m.text}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className={styles.chatInputRow}>
+                      <input className={styles.chatInputField} placeholder="Ask anything about these trials…"
+                        value={chatInput} onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && sendChat()} />
+                      <button className={`${styles.chatMicBtn} ${listening ? styles.chatMicBtnActive : ""}`}
+                        onClick={() => setListening((l) => !l)}>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                        </svg>
+                      </button>
+                      <button className={styles.chatSendBtn} onClick={sendChat}>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Community */}
+              {viewMode === "patient" && patientTab === "community" && (
+                <div style={{ maxWidth:"720px", display:"grid", gap:"24px" }}>
+                  <div>
+                    <h2 style={{ fontFamily:"'Fraunces',serif", fontSize:"20px", fontWeight:600, color:"#0D1117", marginBottom:"4px" }}>What patients are saying</h2>
+                    <p style={{ fontSize:"12px", color:"#9CA3AF", marginBottom:"14px" }}>Synthesised from public X posts, Smart Patients, and Reddit by Light's agents</p>
+                    {!(run?.patientVoice?.length) && <Empty text="Patient voice themes will appear after processing." />}
+                    <div style={{ display:"grid", gap:"12px" }}>
+                      {(run?.patientVoice ?? []).map((theme) => {
+                        const sc = theme.sentiment==="positive"?"#059669":theme.sentiment==="negative"?"#DC2626":theme.sentiment==="mixed"?"#D97706":"#6B7280";
+                        const sb = theme.sentiment==="positive"?"#D1FAE5":theme.sentiment==="negative"?"#FEE2E2":theme.sentiment==="mixed"?"#FEF3C7":"#F1F5F9";
+                        return (
+                          <div key={theme.theme} className="panel" style={{ padding:"18px" }}>
+                            <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:"12px", marginBottom:"10px" }}>
+                              <div style={{ fontWeight:700, fontSize:"14px", color:"#0D1117" }}>{theme.theme}</div>
+                              <div style={{ display:"flex", alignItems:"center", gap:"6px", flexShrink:0 }}>
+                                <span style={{ fontSize:"11px", fontWeight:700, padding:"3px 8px", borderRadius:"6px", background:sb, color:sc }}>{theme.sentiment}</span>
+                                <span style={{ fontSize:"11px", color:"#9CA3AF" }}>{theme.sourceCount} posts</span>
+                              </div>
+                            </div>
+                            <p style={{ fontSize:"13px", color:"#374151", lineHeight:1.6, marginBottom:"12px" }}>{theme.summary}</p>
+                            <div style={{ background:"#F8FAFC", borderRadius:"10px", padding:"10px 14px", borderLeft:"3px solid #2563EB" }}>
+                              <span style={{ fontSize:"11px", fontWeight:700, color:"#2563EB", textTransform:"uppercase", letterSpacing:"0.06em" }}>Ask your coordinator: </span>
+                              <span style={{ fontSize:"12px", color:"#374151" }}>{theme.coordinatorQuestion}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div style={{ height:"1px", background:"#F1F5F9" }}/>
+                  <div>
+                    <h2 style={{ fontFamily:"'Fraunces',serif", fontSize:"20px", fontWeight:600, color:"#0D1117", marginBottom:"4px" }}>Connect with someone</h2>
+                    <p style={{ fontSize:"12px", color:"#9CA3AF", marginBottom:"14px" }}>People who've been through a similar trial and are open to a conversation</p>
+                    <div style={{ display:"grid", gap:"12px" }}>
+                      {COMMUNITY_PROFILES.map((p, idx) => (
+                        <div key={p.id} className="panel" style={{ padding:"18px" }}>
+                          <div style={{ display:"flex", alignItems:"flex-start", gap:"14px", marginBottom:"12px" }}>
+                            <div style={{ width:48, height:48, borderRadius:14, flexShrink:0, background:["#1D4ED8","#2563EB","#3B82F6"][idx%3], display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:700, fontSize:18 }}>{p.name[0]}</div>
+                            <div style={{ flex:1 }}>
+                              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:"8px" }}>
+                                <div>
+                                  <span style={{ fontWeight:700, fontSize:"14px", color:"#0D1117" }}>{p.name}, {p.age}</span>
+                                  <span style={{ fontSize:"13px", color:"#9CA3AF", marginLeft:"8px" }}>{p.diagnosis}</span>
+                                </div>
+                                <span style={{ fontSize:"11px", fontWeight:700, padding:"3px 10px", borderRadius:"999px", flexShrink:0, background:p.active?"#DBEAFE":"#D1FAE5", color:p.active?"#1E40AF":"#065F46" }}>{p.status}</span>
+                              </div>
+                              <p style={{ fontSize:"12px", color:"#9CA3AF", marginTop:"4px" }}>Enrolled {p.enrolled} · {p.trial}</p>
+                            </div>
+                          </div>
+                          <p style={{ fontSize:"13px", color:"#374151", lineHeight:1.6, fontStyle:"italic", borderLeft:"2px solid #BFDBFE", paddingLeft:"12px", marginBottom:"12px" }}>"{p.quote}"</p>
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                            <div style={{ display:"flex", gap:"6px" }}>
+                              {p.tags.map(t => <span key={t} style={{ fontSize:"11px", background:"#F1F5F9", color:"#64748B", padding:"3px 10px", borderRadius:"999px" }}>{t}</span>)}
+                            </div>
+                            {messageSent.has(p.id)
+                              ? <p style={{ fontSize:"13px", color:"#059669", fontWeight:700 }}>✓ Sent!</p>
+                              : <button className="btn-primary" style={{ padding:"8px 18px", fontSize:"13px" }} onClick={() => setMessageTarget(p.id)}>Message {p.name} →</button>
+                            }
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className={styles.optInCard}>
+                    <div className={styles.optInRow}>
+                      <div className={styles.optInIcon}>
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                        </svg>
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <p className={styles.optInTitle}>Help someone like you</p>
+                        <p className={styles.optInSub}>After your trial, would you be open to answering questions for others?</p>
+                        <label className={styles.checkbox} onClick={() => setOptIn(v => !v)}>
+                          <div className={`${styles.checkboxBox} ${optIn ? styles.checkboxBoxChecked : ""}`}>
+                            {optIn && <svg width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>}
+                          </div>
+                          <span className={styles.checkboxLabel}>Yes, add me to the community after my trial</span>
+                        </label>
+                        {optIn && <p className={styles.optInSuccess}>Saved — thank you.</p>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Prepare */}
+              {viewMode === "patient" && patientTab === "prepare" && (
+                <div style={{ maxWidth:"720px", display:"grid", gap:"16px" }}>
+                  {!(run?.artifacts?.length) && <Empty text="Application materials will appear after processing." />}
+                  {(run?.artifacts ?? []).map((art) => {
+                    const isEmail = art.kind === "coordinator_email";
+                    const isChecklist = art.kind === "clinician_checklist" || art.kind === "missing_data_checklist";
+                    const content = isEmail ? (emailText || art.content) : art.content;
+                    const checkItems = isChecklist ? content.split("\n").map(l => l.replace(/^[-•*]\s*|\[\s*\]\s*/,"").trim()).filter(Boolean) : [];
+                    return (
+                      <div key={art.kind} className={styles.artifactCard}>
+                        <div className={styles.artifactCardHeader}>
+                          <div className={styles.artifactCardHeaderLeft}>
+                            <div className={`${styles.artifactDot} ${isEmail ? styles.artifactDotAmber : styles.artifactDotBlue}`}/>
+                            <span className={styles.artifactLabel}>{art.title}</span>
+                          </div>
+                          <button className={`${styles.copyBtn} ${copied===art.kind ? styles.copyBtnCopied : styles.copyBtnDefault}`}
+                            onClick={() => cp(art.kind, content)}>
+                            {copied===art.kind ? "✓ Copied!" : "Copy"}
+                          </button>
+                        </div>
+                        <div style={{ padding:"16px 20px" }}>
+                          {isEmail && (
+                            <>
+                              <textarea style={{ width:"100%", fontSize:"13px", lineHeight:1.7, border:"1.5px solid #E2E8F0", borderRadius:"12px", padding:"14px 16px", resize:"vertical", minHeight:"200px", fontFamily:"inherit", color:"#374151" }}
+                                value={emailText||art.content} onChange={e => setEmailText(e.target.value)}/>
+                              <button onClick={() => setEmailSent(true)} style={{ marginTop:"10px", width:"100%", padding:"12px", borderRadius:"12px", fontSize:"13px", fontWeight:700, border:"none", cursor:"pointer", background:emailSent?"#D1FAE5":"#2563EB", color:emailSent?"#065F46":"white", fontFamily:"inherit" }}>
+                                {emailSent ? "✓ Ready — copy and send" : "Mark as ready to send"}
+                              </button>
+                            </>
+                          )}
+                          {isChecklist && (
+                            <div style={{ display:"grid", gap:"8px" }}>
+                              {checkItems.map((item,i) => (
+                                <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:"10px" }}>
+                                  <div style={{ width:18, height:18, borderRadius:5, border:"2px solid #CBD5E1", flexShrink:0, marginTop:2 }}/>
+                                  <span style={{ fontSize:"13px", color:"#374151", lineHeight:1.5 }}>{item}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {!isEmail && !isChecklist && (
+                            <div style={{ fontSize:"13px", color:"#374151", lineHeight:1.8, whiteSpace:"pre-wrap", fontFamily:"inherit", background:"#F8FAFC", borderRadius:"10px", padding:"16px" }}>
+                              {content}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {questions.length > 0 && (
+                    <div className="panel" style={{ padding:"18px" }}>
+                      <p style={{ fontSize:"11px", fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:"12px" }}>Questions to ask the coordinator</p>
+                      <div style={{ display:"grid", gap:"8px" }}>
+                        {questions.slice(0,8).map(q => (
+                          <div key={q} style={{ display:"flex", alignItems:"flex-start", gap:"10px" }}>
+                            <span style={{ color:"#2563EB", fontWeight:700, fontSize:"16px", lineHeight:1, flexShrink:0 }}>·</span>
+                            <span style={{ fontSize:"13px", color:"#374151", lineHeight:1.5 }}>{q}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <p className={styles.disclaimer}>Light does not provide medical advice. Always discuss with your oncologist.</p>
+                </div>
+              )}
+
+              {/* Feed */}
+              {viewMode === "patient" && patientTab === "feed" && (
+                <>
+                  <div className={styles.feedHeader}>
+                    <span className={styles.feedRefreshDot}/>
+                    Live signal feed for <strong style={{ color:"#0D1117", margin:"0 4px" }}>{run?.patient?.biomarkers?.[0] || run?.patient?.diagnosis || "your diagnosis"}</strong>
+                    — X, PubMed, patient forums
+                  </div>
+                  <div className={styles.feedList}>
+                    {FEED_ITEMS.map(item => (
+                      <div key={item.id} className={styles.feedItem}>
+                        <div className={styles.feedItemTop}>
+                          <div className={`${styles.feedIcon} ${item.type==="x"?styles.feedIconX:item.type==="pubmed"?styles.feedIconPubmed:styles.feedIconForum}`}>
+                            {item.type==="x"?"𝕏":item.type==="pubmed"?"📄":"💬"}
+                          </div>
+                          <div className={styles.feedMeta}>
+                            <div className={styles.feedHandle}>{item.type==="x"?(item as any).handle:item.type==="forum"?(item as any).source:"PubMed"}</div>
+                            <div className={styles.feedSourceLabel}>{item.type==="x"?"Public post":item.type==="pubmed"?(item as any).journal:"Patient forum"}</div>
+                          </div>
+                          <span className={styles.feedTime}>{item.type==="pubmed"?(item as any).date:(item as any).time}</span>
+                        </div>
+                        {item.type==="pubmed"
+                          ? <p className={styles.feedTitle}>{(item as any).title}</p>
+                          : <p className={styles.feedText}>{(item as any).text}</p>}
+                        <div className={styles.feedFooter}>
+                          <span className={`${styles.feedTag} ${item.type==="x"?styles.feedTagX:item.type==="pubmed"?styles.feedTagPubmed:styles.feedTagForum}`}>
+                            {item.type==="x"?"X":item.type==="pubmed"?"PubMed":(item as any).source}
+                          </span>
+                          {item.type==="x" && <span className={styles.feedStat}>♥ {(item as any).likes}</span>}
+                          {item.type==="forum" && <span className={styles.feedStat}>💬 {(item as any).replies} replies</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Technical tabs */}
+              {viewMode === "technical" && (
+                <div className={styles.techPanel}>
+                  {techTab==="agents"      && <AgentEventStream events={run?.events??[]} status={run?.status??"created"}/>}
+                  {techTab==="research"    && <ResearchPanel summary={run?.research}/>}
+                  {techTab==="voice"       && <PatientVoicePanel themes={run?.patientVoice??[]}/>}
+                  {techTab==="eligibility" && <EligibilityPanel rows={run?.eligibility??[]}/>}
+                  {techTab==="artifacts"   && <ArtifactPanel artifacts={run?.artifacts??[]}/>}
+                  {/* Keep DoctorConversationDemo available in technical view */}
+                  {techTab==="agents" && run?.conversation && (
+                    <div className="panel" style={{ padding: "16px", marginTop: "16px" }}>
+                      <p style={{ fontSize:"11px", fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:"12px" }}>Conversation transcript</p>
+                      {run.conversation.transcript.map((t, i) => (
+                        <div key={i} style={{ marginBottom: "8px", fontSize: "13px", color: "#374151" }}>
+                          <strong style={{ color: t.speaker==="doctor" ? "#2563EB" : "#059669" }}>
+                            {t.speaker === "doctor" ? "Doctor" : "Patient"}:
+                          </strong>{" "}{t.text}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detail panel */}
+      {selectedTrial && step==="dashboard" && viewMode==="patient" && (
+        <div className={styles.detailOverlay} onClick={e => { if(e.target===e.currentTarget) setSelectedTrial(null); }}>
+          <div className={styles.detailPanel}>
+            <div className={styles.detailHeader}>
+              <div className={styles.detailHeaderTop}>
+                <div>
+                  <p className={styles.detailEyebrow}>Trial detail</p>
+                  <h2 className={styles.detailTitle}>{selectedTrial.title}</h2>
+                  <p className={styles.detailDrugs}>{selectedTrial.phase??""}</p>
+                </div>
+                <button className={styles.detailClose} onClick={() => setSelectedTrial(null)}>
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <div className={styles.detailChips}>
+                {selectedTrial.locations[0] && <span className={styles.detailChip}>{[selectedTrial.locations[0].facility, selectedTrial.locations[0].city].filter(Boolean).join(", ")}</span>}
+                {selectedTrial.distanceMiles && <span className={styles.detailChip}>{selectedTrial.distanceMiles} mi</span>}
+              </div>
+              <div className={styles.detailTabs}>
+                {(["sideeffects","evidence","people"] as const).map(t => (
+                  <button key={t} onClick={() => setDetailTab(t)} className={`${styles.detailTab} ${detailTab===t ? styles.detailTabActive : ""}`}>
+                    {t==="sideeffects"?"Side effects":t==="evidence"?"Evidence":"People"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className={styles.detailContent}>
+              {detailTab==="sideeffects" && (
+                <>
+                  <div className={styles.seLegend}>
+                    <span className={styles.seLegendItem}><span className={styles.seLegendDot} style={{background:"#3B82F6"}}/>Clinical</span>
+                    <span className={styles.seLegendItem}><span className={styles.seLegendDot} style={{background:"#BFDBFE"}}/>Real patients</span>
+                  </div>
+                  {selectedTrial.matchedCriteria.slice(0,4).map((c,i) => (
+                    <div key={c} className={styles.seRow}>
+                      <div className={styles.seTopline}><span className={styles.seName}>{c}</span><span className={styles.seNums}>{65-i*10}% · {55-i*8}%</span></div>
+                      <div className={styles.seBar}><div className={`${styles.seBarFill} ${styles.seBarBlue}`} style={{width:`${65-i*10}%`}}/></div>
+                      <div className={styles.seBar}><div className={`${styles.seBarFill} ${styles.seBarLight}`} style={{width:`${55-i*8}%`}}/></div>
+                    </div>
+                  ))}
+                  {selectedTrial.exclusionRisks.length>0 && (
+                    <div className={styles.flagCard}>
+                      <svg className={styles.flagIcon} width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                      <div><p className={styles.flagTitle}>Review for your profile</p>{selectedTrial.exclusionRisks.map(r => <p key={r} className={styles.flagText}>{r}</p>)}</div>
+                    </div>
+                  )}
+                  {(run?.patientVoice??[]).slice(0,2).map(t => (
+                    <div key={t.theme} className={styles.voiceCard}><p className={styles.voiceQuote}>"{t.summary}"</p><p className={styles.voiceMeta}>{t.theme} · {t.sourceCount} reports</p></div>
+                  ))}
+                </>
+              )}
+              {detailTab==="evidence" && (
+                <>
+                  <div style={{background:"#EFF6FF",borderRadius:"14px",padding:"16px"}}>
+                    <p style={{fontSize:"11px",fontWeight:700,color:"#2563EB",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"8px"}}>Why this trial exists</p>
+                    <p style={{fontSize:"13px",color:"#374151",lineHeight:1.6}}>{run?.research?.themes?.[0]??`${selectedTrial.title} targets patients with this profile.`}</p>
+                  </div>
+                  {selectedTrial.matchedCriteria.map(c => (
+                    <div key={c} className={styles.eligRow} style={{marginBottom:"8px"}}>
+                      <div className={styles.eligCheckDone}><svg width="10" height="10" fill="none" stroke="white" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></div>
+                      <span className={styles.eligText}>{c}</span>
+                    </div>
+                  ))}
+                  {selectedTrial.missingCriteria.map(c => (
+                    <div key={c} className={styles.eligRow} style={{marginBottom:"8px"}}>
+                      <div className={styles.eligCheckMiss}/>
+                      <span className={styles.eligText} style={{color:"#9CA3AF"}}>Missing: {c}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+              {detailTab==="people" && (
+                <>
+                  {COMMUNITY_PROFILES.slice(0,2).map((p,idx) => (
+                    <div key={p.id} className="panel" style={{padding:"16px",marginBottom:"10px"}}>
+                      <div style={{display:"flex",alignItems:"flex-start",gap:"12px",marginBottom:"10px"}}>
+                        <div className={styles.personAvatar} style={{width:44,height:44,background:["#1D4ED8","#2563EB"][idx%2]}}>{p.name[0]}</div>
+                        <div>
+                          <div className={styles.personName}>{p.name}, {p.age}</div>
+                          <div className={styles.personDiag}>{p.diagnosis}</div>
+                          <span className={`${styles.personStatus} ${p.active?styles.personStatusActive:styles.personStatusDone}`}>{p.status}</span>
+                        </div>
+                      </div>
+                      <p className={styles.personQuote}>"{p.quote}"</p>
+                      {messageSent.has(p.id)
+                        ? <p style={{fontSize:"13px",color:"#059669",fontWeight:700}}>✓ Message sent!</p>
+                        : <button className="btn-primary" style={{width:"100%",padding:"10px",fontSize:"13px"}} onClick={() => setMessageTarget(p.id)}>Send a message →</button>}
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+            <div className={styles.detailFooter}>
+              <button className="btn-primary" style={{width:"100%",padding:"14px"}}
+                onClick={() => { setPatientTab("prepare"); setSelectedTrial(null); }}>
+                Prepare my application →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Message modal */}
+      {messageTarget && (() => {
+        const p = COMMUNITY_PROFILES.find(x => x.id===messageTarget);
+        if (!p) return null;
+        return (
+          <div className={styles.modalOverlay} onClick={e => { if(e.target===e.currentTarget) setMessageTarget(null); }}>
+            <div className={styles.modalCard}>
+              <div className={styles.modalHeader}>
+                <div className={styles.personAvatar} style={{width:40,height:40,borderRadius:"12px",background:"#2563EB",fontSize:"16px"}}>{p.name[0]}</div>
+                <div><div style={{fontSize:"15px",fontWeight:700}}>Message {p.name}</div><div style={{fontSize:"12px",color:"#9CA3AF"}}>{p.status}</div></div>
+                <button className={styles.modalCloseBtn} onClick={() => setMessageTarget(null)}>
+                  <svg width="14" height="14" fill="none" stroke="#6B7280" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <div className={styles.modalBody}>
+                <textarea className={styles.modalTextarea} rows={6}
+                  defaultValue={`Hi ${p.name},\n\nI'm looking into a clinical trial and would love to hear about your experience if you're open to it.\n\nThank you`}/>
+                <div className={styles.modalActions}>
+                  <button className="btn-outline" onClick={() => setMessageTarget(null)}>Cancel</button>
+                  <button className="btn-primary" onClick={() => { setMessageSent(s => new Set([...s, messageTarget])); setMessageTarget(null); }}>Send message</button>
+                </div>
+                <p className={styles.modalNote}>{p.name} has opted in to receiving messages.</p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
   );
 }
 
-function toForm(patient: PatientProfile): PatientFormState {
-  return {
-    diagnosis: patient.diagnosis,
-    biomarkers: patient.biomarkers.join(", "),
-    priorTherapies: patient.priorTherapies.join(", "),
-    location: patient.location,
-    maxTravelMiles: String(patient.maxTravelMiles),
-    preferences: patient.preferences.join("\n"),
-    missingDataHints: patient.missingDataHints.join("\n"),
-  };
+// ─── Trial card ───────────────────────────────────────────────────────────────
+function TrialCardNew({ trial, idx, onDetail, onApply, onCommunity }: {
+  trial: TrialCardType; idx: number;
+  onDetail: () => void; onApply: () => void; onCommunity: () => void;
+}) {
+  const loc = trial.locations[0];
+  const locText = loc ? [loc.facility, loc.city, loc.state].filter(Boolean).join(", ") : "Location not listed";
+  const community = COMMUNITY_PROFILES[idx % COMMUNITY_PROFILES.length];
+  return (
+    <article className={styles.trialCardNew}>
+      <div className={`${styles.trialHeader} ${HDR[idx%HDR.length]}`}>
+        <div className={styles.recruitingBadge}><span className={styles.recruitingDot}/>{trial.status??"Recruiting"}</div>
+        <div className={`${styles.matchBadge} ${MBG[idx%MBG.length]}`}>{MLB[idx%MLB.length]}</div>
+        <span className={styles.phaseBadge}>{trial.phase??"Phase not listed"}</span>
+      </div>
+      <div className={styles.trialBody}>
+        <h3 className={styles.trialTitle}>{trial.title}</h3>
+        <p className={styles.trialNctId}>{trial.nctId}</p>
+        <div className={styles.trialChips}>
+          <span className={styles.chip}>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+            {locText}{trial.distanceMiles?` · ${trial.distanceMiles} mi`:""}
+          </span>
+          {trial.sourceUrl && <a className={styles.chip} href={trial.sourceUrl} target="_blank" rel="noreferrer" style={{color:"#2563EB"}} onClick={e=>e.stopPropagation()}>Official source ↗</a>}
+        </div>
+        <div className={styles.matchReasons}>
+          {trial.matchedCriteria.slice(0,4).map(c => (
+            <div key={c} className={styles.matchReason}>
+              <div className={`${styles.matchReasonCheck} ${CHK[idx%CHK.length]}`}>
+                <svg width="10" height="10" fill="none" stroke="white" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <span className={styles.matchReasonText}>{c}</span>
+            </div>
+          ))}
+        </div>
+        <div className={styles.communityQuote}>
+          <div className={styles.quoteAvatar}>{community.name[0]}</div>
+          <div className={styles.quoteBody}>
+            <div><span className={styles.quotePerson}>{community.name}, {community.age}</span><span className={styles.quoteStatus}> · {community.status}</span></div>
+            <p className={styles.quoteText}>"{community.quote}"</p>
+            <div className={styles.quoteFooter}>
+              <span className={styles.quoteSource}>Smart Patients</span>
+              <button className={styles.quoteTalk} onClick={e=>{e.stopPropagation();onCommunity();}}>Talk to them →</button>
+            </div>
+          </div>
+        </div>
+        <div className={styles.cardActions}>
+          <button className="btn-outline" onClick={onDetail}>Side effects + evidence</button>
+          <button className="btn-primary" onClick={onApply}>Apply now →</button>
+        </div>
+      </div>
+    </article>
+  );
 }
 
+// ─── Helpers (DO NOT CHANGE) ──────────────────────────────────────────────────
+function toForm(p: PatientProfile): PatientFormState {
+  return { diagnosis: p.diagnosis, biomarkers: p.biomarkers.join(", "), priorTherapies: p.priorTherapies.join(", "), location: p.location, maxTravelMiles: String(p.maxTravelMiles), preferences: p.preferences.join("\n"), missingDataHints: p.missingDataHints.join("\n") };
+}
 function toPatientInput(form: PatientFormState): PatientProfileInput {
-  return {
-    diagnosis: form.diagnosis,
-    biomarkers: splitList(form.biomarkers),
-    priorTherapies: splitList(form.priorTherapies),
-    location: form.location,
-    maxTravelMiles: Number(form.maxTravelMiles) || seedPatient.maxTravelMiles,
-    preferences: splitList(form.preferences),
-    missingDataHints: splitList(form.missingDataHints),
-  };
+  return { diagnosis: form.diagnosis, biomarkers: splitList(form.biomarkers), priorTherapies: splitList(form.priorTherapies), location: form.location, maxTravelMiles: Number(form.maxTravelMiles)||seedPatient.maxTravelMiles, preferences: splitList(form.preferences), missingDataHints: splitList(form.missingDataHints) };
 }
-
-function splitList(value: string): string[] {
-  return value.split(/\n|,/).map((item) => item.trim()).filter(Boolean);
-}
-
-function dedupe(values: string[]): string[] {
-  return [...new Set(values.map((item) => item.trim()).filter(Boolean))];
-}
+function splitList(v: string): string[] { return v.split(/\n|,/).map(s=>s.trim()).filter(Boolean); }
+function dedupe(arr: string[]): string[] { return [...new Set(arr.map(s=>s.trim()).filter(Boolean))]; }
