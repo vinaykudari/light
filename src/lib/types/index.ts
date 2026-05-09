@@ -12,4 +12,4 @@ export type {
   TrialIntelligenceState,
 } from "./run";
 export type { EligibilityRow, TrialCard, TrialLocation } from "./trial";
-export type { PatientVoicePost, PatientVoiceTheme } from "./voice";
+export type { PatientVoicePost, PatientVoiceSource, PatientVoiceTheme } from "./voice";

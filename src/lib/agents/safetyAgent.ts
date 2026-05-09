@@ -16,6 +16,11 @@ export async function runSafetyAgent(
     ...theme,
     summary: applyMedicalSafety(theme.summary),
     coordinatorQuestion: applyMedicalSafety(theme.coordinatorQuestion),
+    sources: theme.sources?.map((source) => ({
+      ...source,
+      title: applyMedicalSafety(source.title),
+      snippet: source.snippet ? applyMedicalSafety(source.snippet) : undefined,
+    })),
   }));
   await context.emit("safety", "completed", "Safety review complete", "Outputs are labeled for education and clinician or study-team review.");
   return { artifacts: safeArtifacts, themes: safeThemes };

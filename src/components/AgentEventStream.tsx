@@ -6,15 +6,16 @@ export function AgentEventStream({ events, status }: { events: AgentEvent[]; sta
   return (
     <section className={`${styles.streamPanel} panel`}>
       <div className={styles.panelHeader}>
-        <Title kicker="Agent stream" title="Live agent thoughts" />
+        <Title kicker="Neural feed" title="Live Agent Work" />
         <span className={styles.badge}>{status}</span>
       </div>
       <ol className={styles.eventList} aria-live="polite">
         {events.map((event, index) => (
-          <li key={event.id}>
+          <li data-status={event.status} key={event.id}>
             <span>{String(index + 1).padStart(2, "0")}</span>
             <div>
               <strong>{event.agent.replace("_", " ")} / {event.status}</strong>
+              <em>{sponsorForEvent(event)}</em>
               <p>{event.title}</p>
               <small>{event.detail}</small>
               {event.metadata?.sourceUrl ? (
@@ -29,4 +30,16 @@ export function AgentEventStream({ events, status }: { events: AgentEvent[]; sta
       </ol>
     </section>
   );
+}
+
+function sponsorForEvent(event: AgentEvent): string {
+  const text = `${event.agent} ${event.title} ${event.detail}`;
+  if (/tensorlake|workflow executor/i.test(text)) return "powered by Tensorlake";
+  if (/nia|web context/i.test(text)) return "powered by Nia";
+  if (/hyperspell|clinic memory/i.test(text)) return "powered by Hyperspell";
+  if (/x api|x\.com|public patient/i.test(text)) return "powered by X.com + web";
+  if (/clinicaltrials|nct|trial records/i.test(text)) return "powered by ClinicalTrials.gov";
+  if (/pubmed|research papers/i.test(text)) return "powered by PubMed";
+  if (/synthes|extract|ranking|briefing/i.test(text)) return "powered by GPT-5.4 mini";
+  return "Light orchestration";
 }

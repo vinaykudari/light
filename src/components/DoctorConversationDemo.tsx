@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { longCovidPatient, longCovidTranscript } from "@/lib/demo/longCovidDemo";
 import type { ConversationTurn, PatientProfileInput, TrialIntelligenceState } from "@/lib/types";
 import { Empty, List, Title } from "./DisplayPrimitives";
@@ -23,7 +23,6 @@ export function DoctorConversationDemo({
   const [visibleCount, setVisibleCount] = useState(0);
   const visibleTranscript = longCovidTranscript.slice(0, visibleCount);
   const complete = visibleCount >= longCovidTranscript.length;
-  const extracted = run?.conversation?.extractedProfile;
   const followUps = run?.conversation?.followUpQuestions ?? [];
 
   useEffect(() => {
@@ -31,15 +30,6 @@ export function DoctorConversationDemo({
     const timer = window.setTimeout(() => setVisibleCount((count) => count + 1), 650);
     return () => window.clearTimeout(timer);
   }, [visibleCount, complete]);
-
-  const profileLines = useMemo(() => extracted ? [
-    `Context: ${extracted.possibleConditionContext}`,
-    `Symptoms: ${extracted.symptoms.join(", ")}`,
-    `Duration: ${extracted.duration}`,
-    `Onset: ${extracted.onset}`,
-    `Location: ${extracted.location}`,
-    `Goal: ${extracted.patientGoal}`,
-  ] : [], [extracted]);
 
   function startConversation() {
     setVisibleCount(1);
@@ -76,8 +66,10 @@ export function DoctorConversationDemo({
       </div>
       <div className={styles.profileMiniGrid}>
         <section className={styles.subCard}>
-          <Title title="Extracted Profile" kicker="Conversation agent" />
-          <List items={profileLines} empty="Process the conversation to extract a structured profile." />
+          <Title title="Private Profile Fetch" kicker="Conversation agent" />
+          <p className="muted">
+            Light extracts the structured patient context in memory for agent routing. The patient profile itself is not shown on this demo dashboard.
+          </p>
         </section>
         <section className={styles.subCard}>
           <Title title="Follow-Up Questions" kicker="Missing info" />

@@ -1,23 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { seedPatient } from "@/lib/demo/seedPatient";
-import type { PatientProfile, PatientProfileInput, TrialIntelligenceState } from "@/lib/types";
+import type { TrialIntelligenceState } from "@/lib/types";
 import { AgentEventStream } from "./AgentEventStream";
 import { ArtifactPanel } from "./ArtifactPanel";
 import { DoctorConversationDemo, type ConversationPayload } from "./DoctorConversationDemo";
 import { EligibilityPanel } from "./EligibilityPanel";
-import { PatientProfileForm, type PatientFormState } from "./PatientProfileForm";
 import { PatientVoicePanel } from "./PatientVoicePanel";
 import { ResearchPanel } from "./ResearchPanel";
 import { SafetyBanner } from "./SafetyBanner";
-import { TrialCard } from "./TrialCard";
+import { SponsorRail } from "./SponsorRail";
+import { TrialExplorer } from "./TrialExplorer";
 import { Empty, List, Panel } from "./DisplayPrimitives";
 import styles from "./LightDashboard.module.css";
 
 export function LightDashboard() {
-  const [mode, setMode] = useState<"profile" | "conversation">("conversation");
-  const [form, setForm] = useState<PatientFormState>(toForm(seedPatient));
   const [run, setRun] = useState<TrialIntelligenceState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isProcessing = run?.status === "created" || run?.status === "running";
@@ -40,20 +37,6 @@ export function LightDashboard() {
     if (!run) return "demo ready";
     return `${run.sourceMode} mode`;
   }, [run]);
-
-  async function processIntelligence() {
-    setError(null);
-    const response = await fetch("/api/runs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patient: toPatientInput(form) }),
-    });
-    if (!response.ok) {
-      setError("Run could not be started.");
-      return;
-    }
-    setRun((await response.json()) as TrialIntelligenceState);
-  }
 
   async function processConversation(payload: ConversationPayload) {
     setError(null);
@@ -78,10 +61,10 @@ export function LightDashboard() {
     <main className="shell">
       <header className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>Light</p>
-          <h1>Clinical trial intelligence from evidence + patient voice</h1>
+          <p className={styles.eyebrow}>Light / clinical intelligence OS</p>
+          <h1>Agentic trial matching from live conversation, evidence, and patient voice.</h1>
           <p className="muted">
-            Synthetic patient context, official trial records, research evidence, public patient-experience signals, and referral-prep artifacts.
+            Doctor voice captures symptoms, agents retrieve real trial records, papers, web sentiment, and sponsor-backed context, then assemble referral prep for clinician review.
           </p>
         </div>
         <div className={styles.sourceMode} aria-live="polite">
@@ -91,47 +74,31 @@ export function LightDashboard() {
       </header>
 
       <SafetyBanner />
+      <SponsorRail events={run?.events ?? []} capabilities={run?.capabilities} />
 
-      <div className={styles.modeTabs} role="tablist" aria-label="Demo mode">
-        <button className={mode === "conversation" ? styles.activeTab : ""} type="button" onClick={() => setMode("conversation")}>
-          Live Doctor Conversation
-        </button>
-        <button className={mode === "profile" ? styles.activeTab : ""} type="button" onClick={() => setMode("profile")}>
-          Structured Patient Profile
-        </button>
-      </div>
-
-      {mode === "conversation" ? (
-        <section className={styles.demoGrid}>
-          <DoctorConversationDemo run={run} isProcessing={isProcessing} onProcess={processConversation} />
-          <AgentEventStream events={run?.events ?? []} status={run?.status ?? "created"} />
-        </section>
-      ) : (
-        <section className={styles.topGrid}>
-          <PatientProfileForm
-            form={form}
-            isProcessing={isProcessing}
-            onChange={setForm}
-            onSubmit={processIntelligence}
-          />
-          <AgentEventStream events={run?.events ?? []} status={run?.status ?? "created"} />
-        </section>
-      )}
+      <section className={styles.demoGrid}>
+        <DoctorConversationDemo run={run} isProcessing={isProcessing} onProcess={processConversation} />
+        <AgentEventStream events={run?.events ?? []} status={run?.status ?? "created"} />
+      </section>
 
       {error ? <div className={`${styles.banner} panel`}>{error}</div> : null}
 
+      <TrialExplorer
+        eligibility={run?.eligibility ?? []}
+        research={run?.research}
+        trials={run?.trials ?? []}
+        voice={run?.patientVoice ?? []}
+      />
+
       <section className={styles.contentGrid}>
-        <Panel title="Trial Matches" kicker="Shortlist">
-          <div className={styles.trialStack}>
-            {(run?.trials ?? []).map((trial) => <TrialCard key={trial.nctId} trial={trial} />)}
-            {!run?.trials.length ? <Empty text="Click Process to create a trial shortlist." /> : null}
-          </div>
-        </Panel>
         <ResearchPanel summary={run?.research} />
         <PatientVoicePanel themes={run?.patientVoice ?? []} />
         <EligibilityPanel rows={run?.eligibility ?? []} />
-        <Panel title="Questions To Ask" kicker="Visit prep">
+        <Panel title="Questions To Ask" kicker="Coordinator prep">
           <List items={dedupe(questions)} empty="Questions will appear after burden and patient voice agents run." />
+        </Panel>
+        <Panel title="Source Status" kicker="Live retrieval">
+          <SourceStatus run={run} />
         </Panel>
         <ArtifactPanel artifacts={run?.artifacts ?? []} />
       </section>
@@ -139,34 +106,18 @@ export function LightDashboard() {
   );
 }
 
-function toForm(patient: PatientProfile): PatientFormState {
-  return {
-    diagnosis: patient.diagnosis,
-    biomarkers: patient.biomarkers.join(", "),
-    priorTherapies: patient.priorTherapies.join(", "),
-    location: patient.location,
-    maxTravelMiles: String(patient.maxTravelMiles),
-    preferences: patient.preferences.join("\n"),
-    missingDataHints: patient.missingDataHints.join("\n"),
-  };
-}
-
-function toPatientInput(form: PatientFormState): PatientProfileInput {
-  return {
-    diagnosis: form.diagnosis,
-    biomarkers: splitList(form.biomarkers),
-    priorTherapies: splitList(form.priorTherapies),
-    location: form.location,
-    maxTravelMiles: Number(form.maxTravelMiles) || seedPatient.maxTravelMiles,
-    preferences: splitList(form.preferences),
-    missingDataHints: splitList(form.missingDataHints),
-  };
-}
-
-function splitList(value: string): string[] {
-  return value.split(/\n|,/).map((item) => item.trim()).filter(Boolean);
-}
-
 function dedupe(values: string[]): string[] {
   return [...new Set(values.map((item) => item.trim()).filter(Boolean))];
+}
+
+function SourceStatus({ run }: { run: TrialIntelligenceState | null }) {
+  if (!run) return <Empty text="Live source status appears after the first run starts." />;
+  const items = [
+    `Trials: ${run.trials.length} cards from official records`,
+    `Research: ${run.research?.papersFound ?? 0} papers and web contexts`,
+    `Patient voice: ${run.patientVoice.length} aggregate themes`,
+    `Realtime: ${run.events.length} streamed agent events`,
+    `Mode: ${run.sourceMode}`,
+  ];
+  return <List items={items} empty="No source status yet." />;
 }

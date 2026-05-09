@@ -88,7 +88,13 @@ async function fetchOfficialXQuery(token: string, query: string): Promise<{ post
   const json = (await response.json()) as XSearchResponse;
   const posts = (json.data ?? []).flatMap((tweet) => {
     const text = sanitizePost(tweet.text ?? "");
-    return tweet.id && text.length > 25 ? [{ id: tweet.id, text, source: "x" as const }] : [];
+    return tweet.id && text.length > 25 ? [{
+      id: tweet.id,
+      text,
+      source: "x" as const,
+      url: `https://x.com/i/status/${tweet.id}`,
+      title: "Public X post",
+    }] : [];
   });
   return { posts };
 }
@@ -134,7 +140,13 @@ async function fetchViaLocalizer(link: string): Promise<PatientVoicePost | undef
   const json = (await response.json()) as { source_post_id?: string; original_text?: string };
   const text = sanitizePost(json.original_text ?? "");
   if (text.length < 25) return undefined;
-  return { id: json.source_post_id ?? link, text, source: "x" };
+  return {
+    id: json.source_post_id ?? link,
+    text,
+    source: "x",
+    url: link,
+    title: "Public X post hydrated by Claw localizer",
+  };
 }
 
 function sanitizePost(text: string): string {
