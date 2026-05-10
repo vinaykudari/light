@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { longCovidClinicalNoteTranscript, longCovidTranscript, longCovidPatient } from "@/lib/demo/longCovidDemo";
+import { lungCancerClinicalNoteTranscript, lungCancerTranscript, lungCancerPatient } from "@/lib/demo/lungCancerDemo";
 import type {
   AgentEvent,
   AgentName,
@@ -111,7 +111,7 @@ export function LightDashboard() {
   // Conversation streaming state
   const [convCount, setConvCount]     = useState(0);
   const convProcessed                 = useRef(false);
-  const convComplete                  = convCount >= longCovidTranscript.length;
+  const convComplete                  = convCount >= lungCancerTranscript.length;
 
   // Go to dashboard once the live backend starts streaming events.
   useEffect(() => {
@@ -136,16 +136,16 @@ export function LightDashboard() {
       setStep("processing");
       await processConversation({
         patient: {
-          age: longCovidPatient.age,
-          diagnosis: longCovidPatient.diagnosis,
-          biomarkers: longCovidPatient.biomarkers,
-          priorTherapies: longCovidPatient.priorTherapies,
-          location: longCovidPatient.location,
-          maxTravelMiles: longCovidPatient.maxTravelMiles,
-          preferences: longCovidPatient.preferences,
-          missingDataHints: longCovidPatient.missingDataHints,
+          age: lungCancerPatient.age,
+          diagnosis: lungCancerPatient.diagnosis,
+          biomarkers: lungCancerPatient.biomarkers,
+          priorTherapies: lungCancerPatient.priorTherapies,
+          location: lungCancerPatient.location,
+          maxTravelMiles: lungCancerPatient.maxTravelMiles,
+          preferences: lungCancerPatient.preferences,
+          missingDataHints: lungCancerPatient.missingDataHints,
         },
-        conversationTranscript: longCovidTranscript,
+        conversationTranscript: lungCancerTranscript,
       });
     }, 1200);
     return () => clearTimeout(t);
@@ -188,21 +188,21 @@ export function LightDashboard() {
     setStep("conversation");
   }
 
-  async function startUpload(fileName = uploadedFileName ?? "synthetic-long-covid-clinical-note.svg") {
+  async function startUpload(fileName = uploadedFileName ?? "synthetic-lung-cancer-clinical-note.svg") {
     setUploadedFileName(fileName);
     setStep("processing");
     await processConversation({
       patient: {
-        age: longCovidPatient.age,
-        diagnosis: "uploaded clinical note pending extraction",
-        biomarkers: [],
-        priorTherapies: ["none documented in uploaded synthetic note"],
-        location: longCovidPatient.location,
-        maxTravelMiles: longCovidPatient.maxTravelMiles,
-        preferences: ["uploaded synthetic clinical note", "wants doctor-reviewed research study options", "prefers low-burden visits"],
-        missingDataHints: [],
+        age: lungCancerPatient.age,
+        diagnosis: "uploaded lung cancer clinical note pending extraction",
+        biomarkers: lungCancerPatient.biomarkers,
+        priorTherapies: lungCancerPatient.priorTherapies,
+        location: lungCancerPatient.location,
+        maxTravelMiles: lungCancerPatient.maxTravelMiles,
+        preferences: ["uploaded synthetic clinical note", ...lungCancerPatient.preferences],
+        missingDataHints: lungCancerPatient.missingDataHints,
       },
-      conversationTranscript: longCovidClinicalNoteTranscript,
+      conversationTranscript: lungCancerClinicalNoteTranscript,
     });
   }
 
@@ -376,21 +376,39 @@ export function LightDashboard() {
               <p style={{ fontSize: "14px", color: "#6B7280", lineHeight: 1.65, marginBottom: "28px", flex: 1 }}>
                 Drop a PDF, clinical note, lab report, or referral letter. Light reads it and extracts your profile automatically.
               </p>
-              {/* Upload zone */}
-              <div
-                onClick={() => uploadInputRef.current?.click()}
-                style={{ border: "2px dashed #CBD5E1", borderRadius: "14px", padding: "24px 16px", textAlign: "center", cursor: "pointer", marginBottom: "12px", background: "#FAFBFF", transition: "all 0.15s" }}
-                onMouseOver={e => { (e.currentTarget as HTMLElement).style.borderColor = "#2563EB"; (e.currentTarget as HTMLElement).style.background = "#EFF6FF"; }}
-                onMouseOut={e => { (e.currentTarget as HTMLElement).style.borderColor = "#CBD5E1"; (e.currentTarget as HTMLElement).style.background = "#FAFBFF"; }}>
-                <p style={{ fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>Click to upload or drag here</p>
-                <p style={{ fontSize: "12px", color: "#9CA3AF" }}>PDF · JPG · PNG · SVG</p>
-                {uploadedFileName && <p style={{ fontSize: "11px", color: "#2563EB", fontWeight: 600, marginTop: "8px" }}>✓ {uploadedFileName}</p>}
+              <div style={{ display:"grid", gap:"12px" }}>
+                <img alt="Synthetic clinical note preview" src="/synthetic-lung-cancer-clinical-note.svg" style={{ width:"100%", borderRadius:"12px", border:"1px solid #E2E8F0", background:"#F8FAFC" }} />
+                <div
+                  onClick={() => uploadInputRef.current?.click()}
+                  style={{ border: "2px dashed #CBD5E1", borderRadius: "14px", padding: "18px 16px", textAlign: "center", cursor: "pointer", background: "#FAFBFF", transition: "all 0.15s" }}
+                  onMouseOver={e => { (e.currentTarget as HTMLElement).style.borderColor = "#2563EB"; (e.currentTarget as HTMLElement).style.background = "#EFF6FF"; }}
+                  onMouseOut={e => { (e.currentTarget as HTMLElement).style.borderColor = "#CBD5E1"; (e.currentTarget as HTMLElement).style.background = "#FAFBFF"; }}>
+                  <p style={{ fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>Click to upload or drag here</p>
+                  <p style={{ fontSize: "12px", color: "#9CA3AF" }}>PDF · JPG · PNG · SVG</p>
+                  {uploadedFileName && <p style={{ fontSize: "11px", color: "#2563EB", fontWeight: 600, marginTop: "8px" }}>{uploadedFileName}</p>}
+                </div>
+                <input
+                  accept="image/*,.pdf"
+                  ref={uploadInputRef}
+                  style={{ display:"none" }}
+                  type="file"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void startUpload(file.name);
+                  }}
+                />
+                <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
+                  <button className="btn-primary" onClick={() => uploadInputRef.current?.click()} style={{ padding:"10px 14px", fontSize:"13px", borderRadius:"10px" }}>
+                    Upload note →
+                  </button>
+                  <button className="btn-outline" onClick={() => void startUpload()} style={{ padding:"10px 14px", fontSize:"13px", borderRadius:"10px" }}>
+                    Use sample
+                  </button>
+                </div>
+                <a href="/synthetic-lung-cancer-clinical-note.svg" target="_blank" rel="noreferrer" style={{ fontSize:"12px", fontWeight:700, color:"#2563EB", textDecoration:"none" }}>
+                  Open sample clinical note image
+                </a>
               </div>
-              <input accept="image/*,.pdf" ref={uploadInputRef} style={{ display:"none" }} type="file"
-                onChange={(event) => { const file = event.target.files?.[0]; if (file) void startUpload(file.name); }}/>
-              <button className="btn-outline" onClick={() => void startUpload()} style={{ width:"100%", padding:"11px", fontSize:"13px", borderRadius:"12px", fontFamily:"inherit" }}>
-                Use sample clinical note
-              </button>
             </div>
           </div>
 
@@ -420,7 +438,7 @@ export function LightDashboard() {
 
           {/* Chat bubbles */}
           <div style={{ display: "grid", gap: "12px", marginBottom: "20px" }}>
-            {longCovidTranscript.slice(0, convCount).map((turn, i) => {
+            {lungCancerTranscript.slice(0, convCount).map((turn, i) => {
               const isDoctor = turn.speaker === "doctor";
               return (
                 <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start", flexDirection: isDoctor ? "row" : "row-reverse" }}>
@@ -527,10 +545,10 @@ export function LightDashboard() {
             <div style={{ display: "grid", gap: "10px" }}>
               <p className={styles.sidebarTitle}>Patient</p>
               {[
-                { label: "Diagnosis",     value: run?.patient?.diagnosis || longCovidPatient.diagnosis,          blue: false },
+                { label: "Diagnosis",     value: run?.patient?.diagnosis || lungCancerPatient.diagnosis,          blue: false },
                 { label: "Biomarkers",    value: run?.patient?.biomarkers?.join(", ") || "pending extraction",  blue: true  },
                 { label: "Prior therapy", value: run?.patient?.priorTherapies?.join(", ") || "pending extraction", blue: false },
-                { label: "Location",      value: run?.patient?.location || longCovidPatient.location,             blue: false },
+                { label: "Location",      value: run?.patient?.location || lungCancerPatient.location,             blue: false },
               ].map((f) => (
                 <div key={f.label} className={styles.sidebarField}>
                   <span className={styles.sidebarLabel}>{f.label}</span>

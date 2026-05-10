@@ -36,18 +36,18 @@ Starts an agentic trial intelligence run.
 \`\`\`json
 {
   "patient": {
-    "age": 34,
-    "diagnosis": "symptom conversation pending",
-    "biomarkers": [],
-    "priorTherapies": ["none documented in demo conversation"],
+    "age": 58,
+    "diagnosis": "metastatic non-small cell lung cancer with EGFR exon 20 insertion",
+    "biomarkers": ["EGFR exon 20 insertion"],
+    "priorTherapies": ["platinum-based chemotherapy"],
     "location": "San Francisco, CA",
     "maxTravelMiles": 50,
-    "preferences": ["wants doctor-reviewed research study options"],
-    "missingDataHints": []
+    "preferences": ["avoid overnight stays", "prefers Friday visits", "wants to understand biopsy requirements"],
+    "missingDataHints": ["ECOG performance status", "latest creatinine clearance", "brain metastases stability"]
   },
   "conversationTranscript": [
-    { "speaker": "doctor", "text": "Tell me what has been going on." },
-    { "speaker": "patient", "text": "I had COVID about 8 months ago. Since then I have had bad brain fog..." }
+    { "speaker": "doctor", "text": "Tell me what you are trying to figure out." },
+    { "speaker": "patient", "text": "I have metastatic non-small cell lung cancer with an EGFR exon 20 insertion. I already had platinum-based chemotherapy..." }
   ]
 }
 \`\`\`

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { longCovidPatient, longCovidTranscript } from "@/lib/demo/longCovidDemo";
+import { lungCancerPatient, lungCancerTranscript } from "@/lib/demo/lungCancerDemo";
 import type { ConversationTurn, PatientProfileInput, TrialIntelligenceState } from "@/lib/types";
 import { Empty, List, Title } from "./DisplayPrimitives";
 import styles from "./LightDashboard.module.css";
@@ -21,8 +21,8 @@ export function DoctorConversationDemo({
   onProcess: (payload: ConversationPayload) => void;
 }) {
   const [visibleCount, setVisibleCount] = useState(0);
-  const visibleTranscript = longCovidTranscript.slice(0, visibleCount);
-  const complete = visibleCount === 0 || visibleCount >= longCovidTranscript.length;
+  const visibleTranscript = lungCancerTranscript.slice(0, visibleCount);
+  const complete = visibleCount === 0 || visibleCount >= lungCancerTranscript.length;
   const followUps = run?.conversation?.followUpQuestions ?? [];
 
   useEffect(() => {
@@ -36,10 +36,10 @@ export function DoctorConversationDemo({
   }
 
   function processConversation() {
-    if (!visibleCount) setVisibleCount(longCovidTranscript.length);
+    if (!visibleCount) setVisibleCount(lungCancerTranscript.length);
     onProcess({
       patient: toPatientInput(),
-      conversationTranscript: longCovidTranscript,
+      conversationTranscript: lungCancerTranscript,
     });
   }
 
@@ -77,13 +77,13 @@ export function DoctorConversationDemo({
 
 function toPatientInput(): PatientProfileInput {
   return {
-    age: longCovidPatient.age,
-    diagnosis: longCovidPatient.diagnosis,
-    biomarkers: longCovidPatient.biomarkers,
-    priorTherapies: longCovidPatient.priorTherapies,
-    location: longCovidPatient.location,
-    maxTravelMiles: longCovidPatient.maxTravelMiles,
-    preferences: longCovidPatient.preferences,
-    missingDataHints: longCovidPatient.missingDataHints,
+    age: lungCancerPatient.age,
+    diagnosis: lungCancerPatient.diagnosis,
+    biomarkers: lungCancerPatient.biomarkers,
+    priorTherapies: lungCancerPatient.priorTherapies,
+    location: lungCancerPatient.location,
+    maxTravelMiles: lungCancerPatient.maxTravelMiles,
+    preferences: lungCancerPatient.preferences,
+    missingDataHints: lungCancerPatient.missingDataHints,
   };
 }
