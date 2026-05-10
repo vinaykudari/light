@@ -261,7 +261,22 @@
   display: flex; align-items: center; padding: 0 24px; gap: 16px;
   position: sticky; top: 0; z-index: 50; flex-shrink: 0;
 }
-.navLogo { font-family: 'Fraunces',Georgia,serif; font-size: 20px; font-weight: 600; color: #2563EB; margin-right: auto; }
+.navLogo { font-family: 'Fraunces',Georgia,serif; font-size: 20px; font-weight: 600; color: #2563EB; margin-right: auto; position: relative; display: inline-block; }
+.logoText { position: relative; z-index: 1; }
+.logoShimmer {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.85) 45%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.85) 55%, transparent 100%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: logoLight 3.5s ease-in-out infinite;
+}
+@keyframes logoLight {
+  0%   { background-position: 200% center; opacity: 0; }
+  15%  { opacity: 1; }
+  50%  { background-position: -100% center; }
+  65%  { opacity: 0; }
+  100% { background-position: -100% center; opacity: 0; }
+}
 .modeToggle { display: flex; background: #F1F5F9; border-radius: 10px; padding: 3px; gap: 2px; }
 .modeSwitchBtn {
   display: flex; align-items: center; gap: 6px; padding: 6px 14px;

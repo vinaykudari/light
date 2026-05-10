@@ -267,7 +267,8 @@ export function LightDashboard() {
       {/* ── NAV ──────────────────────────────────────────────────────────── */}
       <nav className={styles.appNav}>
         <span className={styles.navLogo} onClick={() => setStep("landing")} style={{ cursor: "pointer" }}>
-          light
+          <span className={styles.logoText}>light</span>
+          <span className={styles.logoShimmer} aria-hidden="true">light</span>
         </span>
         {step === "dashboard" && (
           <div className={styles.modeToggle}>
