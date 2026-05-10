@@ -38,7 +38,7 @@ export function TrialChatPanel({
   const ready = Boolean(runId && runStatus === "completed");
   const suggestions = useMemo(() => [
     "What should we verify before referral?",
-    "Which parts of my profile does this trial appear to connect with?",
+    "Which parts of my profile does this clinical trial appear to connect with?",
     "What public patient or expert concerns should I ask about?",
   ], []);
 
@@ -49,7 +49,7 @@ export function TrialChatPanel({
     setMessages(next);
     setQuestion("");
     setLoading(true);
-    setStatus("indexing trial corpus");
+    setStatus("indexing clinical trial corpus");
     const response = await fetch(`${apiBase}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -70,7 +70,7 @@ export function TrialChatPanel({
     }
     const indexed = json.indexedSources?.filter((source) => source.status === "indexed").length ?? 0;
     setSources(json.indexedSources ?? []);
-    setStatus(`${json.scope?.kind ?? "trial"} scope / ${indexed} sources`);
+    setStatus(`${json.scope?.kind ?? "clinical trial"} scope / ${indexed} sources`);
     setMessages([...next, { role: "assistant", content: json.answer }]);
   }
 
@@ -78,21 +78,21 @@ export function TrialChatPanel({
     <section className={styles.trialChat}>
       <div className={styles.panelHeader}>
         <div>
-          <p className={styles.microLabel}>Trial chat</p>
+          <p className={styles.microLabel}>Clinical trial chat</p>
           <strong>{trial.nctId} evidence copilot</strong>
         </div>
         <span className={styles.badge}>{loading ? "thinking" : status}</span>
       </div>
       <div className={styles.chatGrid}>
         <div className={styles.chatLog} aria-live="polite">
-          {!messages.length ? <Empty text="Ask about this trial. Light scopes the answer to the official record plus indexed papers, patient voice, expert context, and run evidence." /> : null}
+          {!messages.length ? <Empty text="Ask about this clinical trial. Light scopes the answer to the official record plus indexed papers, patient voice, expert context, and run evidence." /> : null}
           {messages.map((message, index) => (
             <article className={styles.chatBubble} data-role={message.role} key={`${message.role}-${index}`}>
-              <strong>{message.role === "user" ? "You" : "Light trial copilot"}</strong>
+              <strong>{message.role === "user" ? "You" : "Light clinical trial copilot"}</strong>
               {message.role === "assistant" ? <MarkdownMessage content={message.content} /> : <p>{message.content}</p>}
             </article>
           ))}
-          {loading ? <ThinkingBubble label="Light trial copilot" /> : null}
+          {loading ? <ThinkingBubble label="Light clinical trial copilot" /> : null}
         </div>
         <div className={styles.chatSources}>
           <strong>Indexed sources</strong>
@@ -111,7 +111,7 @@ export function TrialChatPanel({
         ))}
       </div>
       <form className={styles.chatForm} onSubmit={ask}>
-        <input disabled={!ready || loading} onChange={(event) => setQuestion(event.target.value)} placeholder={ready ? `Ask about ${trial.nctId}...` : "Trial chat unlocks when the run completes"} value={question} />
+        <input disabled={!ready || loading} onChange={(event) => setQuestion(event.target.value)} placeholder={ready ? `Ask about ${trial.nctId}...` : "Clinical trial chat unlocks when the run completes"} value={question} />
         <button className={styles.primaryButton} disabled={!ready || loading || !question.trim()} type="submit">Ask</button>
       </form>
     </section>

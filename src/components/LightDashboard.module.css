@@ -769,5 +769,35 @@
 /* Inline source links (used in PatientVoicePanel, TrialExplorer) */
 .consoleBlock { padding: 12px; border: 1px solid #E2E8F0; border-radius: 10px; background: #F8FAFC; }
 
+/* Architecture diagram */
+.archPanel { display: grid; gap: 18px; }
+.archHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 18px; border: 1px solid #E2E8F0; border-radius: 14px; background: white; }
+.archHeader h2 { margin: 0; color: #0D1117; font-size: 22px; font-family: 'Fraunces', Georgia, serif; }
+.archHeader p { max-width: 680px; margin: 6px 0 0; color: #64748B; font-size: 13px; line-height: 1.55; }
+.archRunBadge { min-width: 190px; display: grid; gap: 4px; justify-items: end; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 10px; background: #F8FAFC; }
+.archRunBadge span { color: #2563EB; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+.archRunBadge strong { max-width: 220px; overflow: hidden; color: #64748B; font-family: 'Courier New', monospace; font-size: 11px; text-overflow: ellipsis; }
+.archFlow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
+.archColumn { position: relative; display: grid; align-content: start; gap: 10px; min-width: 0; }
+.archColumnTitle { color: #2563EB; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+.archNode { min-height: 126px; display: grid; gap: 9px; padding: 14px; border: 1px solid #E2E8F0; border-radius: 12px; background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.03); opacity: 0.74; }
+.archNode[data-active] { opacity: 1; border-color: #86EFAC; background: linear-gradient(180deg, #FFFFFF, #F0FDF4); box-shadow: 0 10px 22px rgba(16,185,129,0.10); }
+.archNodeTop { display: grid; gap: 6px; }
+.archNodeTop strong { color: #0D1117; font-size: 13px; line-height: 1.25; }
+.archNodeTop span { width: fit-content; padding: 4px 7px; border-radius: 7px; background: #EFF6FF; color: #2563EB; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.archNode p { color: #64748B; font-size: 12px; line-height: 1.45; }
+.archArrow { position: absolute; top: 39px; right: -16px; z-index: 1; width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid #BFDBFE; border-radius: 999px; background: white; color: #2563EB; font-size: 12px; font-weight: 900; box-shadow: 0 4px 12px rgba(37,99,235,0.12); }
+.sponsorMap { display: grid; gap: 14px; padding: 18px; border: 1px solid #E2E8F0; border-radius: 14px; background: white; }
+.sponsorMap h3 { margin: 0; color: #0D1117; font-size: 17px; font-weight: 700; }
+.sponsorMapGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.sponsorMapCard { min-height: 104px; display: flex; gap: 10px; padding: 12px; border: 1px solid #E2E8F0; border-radius: 12px; background: #F8FAFC; opacity: 0.76; }
+.sponsorMapCard[data-active] { opacity: 1; border-color: #86EFAC; background: #F0FDF4; }
+.sponsorMapCard img { width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; }
+.sponsorMapCard p { margin-top: 5px; color: #64748B; font-size: 12px; line-height: 1.4; }
+.sponsorMapTop { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sponsorMapTop strong { color: #0D1117; font-size: 13px; }
+.sponsorMapTop span { color: #2563EB; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+
 @media (max-width: 1180px) { .trialConsole, .chatGrid { grid-template-columns: 1fr; } }
-@media (max-width: 740px) { .dashboardBlocks, .paperGrid, .signalGrid, .sourceGrid, .statGrid { grid-template-columns: 1fr; } .chatForm { grid-template-columns: 1fr; } }
+@media (max-width: 1180px) { .archFlow { grid-template-columns: repeat(2, minmax(0, 1fr)); } .archArrow { display: none; } .sponsorMapGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 740px) { .dashboardBlocks, .paperGrid, .signalGrid, .sourceGrid, .statGrid, .archFlow, .sponsorMapGrid { grid-template-columns: 1fr; } .chatForm { grid-template-columns: 1fr; } .archHeader { display: grid; } .archRunBadge { justify-items: start; } }
