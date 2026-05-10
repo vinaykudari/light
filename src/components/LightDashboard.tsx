@@ -757,7 +757,7 @@ export function LightDashboard() {
                     const isEmail = art.kind === "coordinator_email";
                     const isChecklist = art.kind === "clinician_checklist" || art.kind === "missing_data_checklist";
                     const content = isEmail ? (emailText || art.content) : art.content;
-                    const checkItems = isChecklist ? content.split("\n").map(l => l.replace(/^[-•*]\s*|\[\s*\]\s*/,"").trim()).filter(Boolean) : [];
+                    const checkItems = isChecklist ? content.split("\n").map(l => l.replace(/^[-•*]\s*|\[\s*\]\s*/,"").replace(/\*\*/g,"").trim()).filter(Boolean) : [];
                     return (
                       <div key={art.kind} className={styles.artifactCard}>
                         <div className={styles.artifactCardHeader}>
@@ -791,8 +791,8 @@ export function LightDashboard() {
                             </div>
                           )}
                           {!isEmail && !isChecklist && (
-                            <div style={{ fontSize:"13px", color:"#374151", lineHeight:1.8, whiteSpace:"pre-wrap", fontFamily:"inherit", background:"#F8FAFC", borderRadius:"10px", padding:"16px" }}>
-                              {content}
+                            <div style={{ background:"#F8FAFC", borderRadius:"10px", padding:"16px" }}>
+                              <MarkdownMessage content={content} />
                             </div>
                           )}
                         </div>
