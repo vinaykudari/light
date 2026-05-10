@@ -792,7 +792,7 @@ export function LightDashboard() {
                           )}
                           {!isEmail && !isChecklist && (
                             <div style={{ background:"#F8FAFC", borderRadius:"10px", padding:"16px" }}>
-                              <MarkdownMessage content={content} />
+                              <MarkdownMessage content={normalizeArtifact(content)} />
                             </div>
                           )}
                         </div>
@@ -1260,3 +1260,13 @@ function toPatientInput(form: PatientFormState): PatientProfileInput {
 }
 function splitList(v: string): string[] { return v.split(/\n|,/).map(s=>s.trim()).filter(Boolean); }
 function dedupe(arr: string[]): string[] { return [...new Set(arr.map(s=>s.trim()).filter(Boolean))]; }
+
+// LLM briefing content sometimes puts ## headings inline on the same line.
+// This ensures each heading starts on its own line so MarkdownMessage parses it correctly.
+function normalizeArtifact(content: string): string {
+  return content
+    .replace(/([^\n])(#{1,4} )/g, "$1\n\n$2")  // insert blank line before ## not at line start
+    .replace(/\n(#{1,4} )/g, "\n\n$1")          // ensure double newline before any heading
+    .replace(/\n{3,}/g, "\n\n")                  // collapse excess blank lines
+    .trim();
+}
