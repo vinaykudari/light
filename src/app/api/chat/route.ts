@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({})) as {
     runId?: string;
     question?: string;
+    trialId?: string;
     action?: string;
     history?: ChatMessage[];
   };
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
   const answer = await answerClinicalResearchChat({
     run,
     question: body.question.trim(),
+    trialId: body.trialId,
     history: body.history,
   });
   return jsonWithCors(answer);

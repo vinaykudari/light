@@ -104,7 +104,6 @@ function TrialScopedChat({ runId, runStatus, trial }: { runId?: string; runStatu
   async function ask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!runId || !question.trim() || loading) return;
-    const scopedQuestion = `For ${trial.nctId}, ${question.trim()}`;
     const next = [...messages, { role: "user" as const, content: question.trim() }];
     setMessages(next);
     setQuestion("");
@@ -113,7 +112,7 @@ function TrialScopedChat({ runId, runStatus, trial }: { runId?: string; runStatu
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ runId, question: scopedQuestion, history: messages }),
+      body: JSON.stringify({ runId, trialId: trial.nctId, question: question.trim(), history: messages }),
     });
     const json = await response.json() as { answer?: string; error?: string; scope?: { kind?: string }; indexedSources?: Array<{ status: string }> };
     setLoading(false);

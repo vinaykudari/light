@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { seedPatient } from "@/lib/demo/seedPatient";
 import { longCovidTranscript, longCovidPatient } from "@/lib/demo/longCovidDemo";
 import type {
-  PatientProfile, PatientProfileInput,
+  AgentEvent,
+  AgentName,
+  PatientProfile,
+  PatientProfileInput,
+  PatientVoiceSource,
+  PatientVoiceTheme,
   TrialIntelligenceState, TrialCard as TrialCardType,
 } from "@/lib/types";
 import { AgentEventStream } from "./AgentEventStream";
@@ -16,91 +21,11 @@ import { PatientVoicePanel } from "./PatientVoicePanel";
 import { ResearchPanel } from "./ResearchPanel";
 import { Empty } from "./DisplayPrimitives";
 import { MarkdownMessage } from "./MarkdownMessage";
+import { SponsorRail } from "./SponsorRail";
+import { TrialChatPanel } from "./TrialChatPanel";
 import styles from "./LightDashboard.module.css";
 
-// ─── Static data ──────────────────────────────────────────────────────────────
-const COMMUNITY_PROFILES = [
-  { id: "p1", name: "Marcus",  age: 52, diagnosis: "NSCLC · EGFR exon 20",  trial: "MARIPOSA-2", enrolled: "Mar 2025", status: "Active · Cycle 6",     active: true,  quote: "Fatigue was real weeks 2–4, then I was back to hiking. Happy to answer questions.", tags: ["side effects", "work during treatment"] },
-  { id: "p2", name: "Linda",   age: 61, diagnosis: "Stage 3B NSCLC",         trial: "PAPILLON",   enrolled: "Jan 2025", status: "Active · Cycle 8",     active: true,  quote: "I wish someone told me about the nausea in week 1. It passed. That's why I'm here.", tags: ["nausea", "caregivers"] },
-  { id: "p3", name: "Ray",     age: 67, diagnosis: "NSCLC · EGFR exon 19",   trial: "LAURA",      enrolled: "Nov 2024", status: "Completed · Remission", active: false, quote: "My oncologist didn't mention this trial. I found it myself. She said I was right to push.", tags: ["self-advocacy"] },
-];
-
-// Feed items — PMIDs verified via PubMed E-utilities, NCT IDs live on ClinicalTrials.gov
-const FEED_ITEMS = [
-  {
-    id: "f1", type: "pubmed",
-    title: "Overall Survival with Amivantamab-Lazertinib in EGFR-Mutated Advanced NSCLC",
-    journal: "New England Journal of Medicine", date: "Sep 2025",
-    summary: "MARIPOSA OS data: amivantamab + lazertinib shows overall survival benefit vs osimertinib alone in first-line EGFR-mutated advanced NSCLC.",
-    url: "https://pubmed.ncbi.nlm.nih.gov/40923797/",
-  },
-  {
-    id: "f2", type: "pubmed",
-    title: "Amivantamab plus Lazertinib in Previously Untreated EGFR-Mutated Advanced NSCLC",
-    journal: "New England Journal of Medicine", date: "Jun 2024",
-    summary: "MARIPOSA Phase 3: amivantamab + lazertinib improved progression-free survival vs osimertinib in first-line treatment.",
-    url: "https://pubmed.ncbi.nlm.nih.gov/38924756/",
-  },
-  {
-    id: "f3", type: "pubmed",
-    title: "Osimertinib after Chemoradiotherapy in Stage III EGFR-Mutated NSCLC",
-    journal: "New England Journal of Medicine", date: "Jun 2024",
-    summary: "LAURA trial: osimertinib maintenance after definitive chemoradiotherapy significantly improved progression-free survival in unresectable Stage III NSCLC.",
-    url: "https://pubmed.ncbi.nlm.nih.gov/38828946/",
-  },
-  {
-    id: "f4", type: "pubmed",
-    title: "Amivantamab plus Chemotherapy in NSCLC with EGFR Exon 20 Insertions",
-    journal: "New England Journal of Medicine", date: "Oct 2023",
-    summary: "PAPILLON trial: amivantamab combined with platinum-based chemotherapy nearly doubled progression-free survival vs chemotherapy alone.",
-    url: "https://pubmed.ncbi.nlm.nih.gov/37870976/",
-  },
-  {
-    id: "f5", type: "trial",
-    title: "MARIPOSA-2: Amivantamab + Lazertinib after Platinum Chemotherapy",
-    nctId: "NCT04988295", phase: "Phase 3", status: "Recruiting",
-    sponsor: "Janssen Research & Development",
-    summary: "For patients with EGFR-mutated NSCLC that has progressed on osimertinib and platinum-based chemotherapy.",
-    url: "https://clinicaltrials.gov/study/NCT04988295",
-    date: "Updated May 2025",
-  },
-  {
-    id: "f6", type: "trial",
-    title: "PAPILLON: Amivantamab + Carboplatin + Pemetrexed in EGFR Exon 20",
-    nctId: "NCT04599712", phase: "Phase 3", status: "Recruiting",
-    sponsor: "Janssen Research & Development",
-    summary: "First-line treatment for patients with locally advanced or metastatic NSCLC with EGFR exon 20 insertion mutations.",
-    url: "https://clinicaltrials.gov/study/NCT04599712",
-    date: "Updated Apr 2025",
-  },
-  {
-    id: "f7", type: "forum",
-    source: "Smart Patients",
-    text: "Started cycle 4 of amivantamab at UCSF last week. Fatigue is real but manageable — the team has been incredibly supportive. Happy to answer questions for anyone considering enrolling.",
-    time: "3h ago", replies: 12,
-    url: "https://www.smartpatients.com/clinical-trials",
-  },
-  {
-    id: "f8", type: "forum",
-    source: "Reddit r/nsclc",
-    text: "My oncologist didn't mention a Phase 3 trial I qualified for. Found it myself, brought it to her. She agreed I was a good candidate — starting screening next week. Always search clinicaltrials.gov.",
-    time: "8h ago", replies: 47,
-    url: "https://www.reddit.com/r/nsclc/",
-  },
-];
-
 const HDR = [styles.trialHeaderBlue1, styles.trialHeaderBlue2, styles.trialHeaderBlue3];
-const CHK = [styles.matchReasonCheckStrong, styles.matchReasonCheckGood, styles.matchReasonCheckPoss];
-const MLB = ["STRONG MATCH", "GOOD MATCH", "POSSIBLE MATCH"];
-const MBG = [styles.matchBadgeStrong, styles.matchBadgeGood, styles.matchBadgePoss];
-
-const PROC_STEPS = [
-  { label: "Reading your information",     emoji: "📄" },
-  { label: "Understanding your profile",   emoji: "🧬" },
-  { label: "Searching 18,000+ trials",     emoji: "🔍" },
-  { label: "Finding patient experiences",  emoji: "💬" },
-  { label: "Preparing your matches",       emoji: "✨" },
-];
 
 type Step = "landing" | "intake" | "conversation" | "processing" | "dashboard";
 type ViewMode = "patient" | "technical";
@@ -117,6 +42,15 @@ type TrialEnrichment = {
   maxAge?: string;
   completionDate?: string;
   startDate?: string;
+};
+type LiveFeedItem = {
+  id: string;
+  kind: "trial" | "paper" | "patient" | "expert";
+  title: string;
+  sourceLabel: string;
+  detailLabel: string;
+  body?: string;
+  url?: string;
 };
 
 // Remote backend — CORS is open, so localhost UI can call directly
@@ -174,12 +108,11 @@ export function LightDashboard() {
 
   // ── New UX state ──────────────────────────────────────────────────────────
   const [step, setStep]               = useState<Step>("landing");
-  const [animIdx, setAnimIdx]         = useState(0);
   const [viewMode, setViewMode]       = useState<ViewMode>("patient");
   const [patientTab, setPatientTab]   = useState<PatientTab>("trials");
   const [techTab, setTechTab]         = useState<TechTab>("agents");
   const [selectedTrial, setSelectedTrial] = useState<TrialCardType | null>(null);
-  const [detailTab, setDetailTab]     = useState<"sideeffects" | "evidence" | "people">("sideeffects");
+  const [detailTab, setDetailTab]     = useState<"sideeffects" | "evidence" | "signals">("sideeffects");
   const [chatInput, setChatInput]     = useState("");
   const [chatMessages, setChatMessages] = useState<{ role: "user" | "light"; text: string }[]>([]);
   const [listening, setListening]     = useState(false);
@@ -187,23 +120,19 @@ export function LightDashboard() {
   const [emailSent, setEmailSent]     = useState(false);
   const [trialEnrichment, setTrialEnrichment] = useState<Record<string, TrialEnrichment>>({});
   const [copied, setCopied]           = useState<string | null>(null);
-  const [messageSent, setMessageSent] = useState<Set<string>>(new Set());
-  const [messageTarget, setMessageTarget] = useState<string | null>(null);
-  const [optIn, setOptIn]             = useState(false);
 
   // Conversation streaming state
   const [convCount, setConvCount]     = useState(0);
   const convProcessed                 = useRef(false);
   const convComplete                  = convCount >= longCovidTranscript.length;
 
-  // Go to dashboard once animation finishes — don't wait for backend to fully complete.
-  // Results will stream in as agents finish.
+  // Go to dashboard once the live backend starts streaming events.
   useEffect(() => {
-    if (step === "processing" && animIdx >= PROC_STEPS.length - 1) {
+    if (step === "processing" && (run?.events.length || run?.status === "completed")) {
       const t = setTimeout(() => setStep("dashboard"), 400);
       return () => clearTimeout(t);
     }
-  }, [step, animIdx]);
+  }, [step, run?.events.length, run?.status]);
 
   // Auto-stream conversation turns
   useEffect(() => {
@@ -304,7 +233,7 @@ export function LightDashboard() {
         body: JSON.stringify({
           runId: run?.runId,
           question: q,
-          history: chatMessages.map((m) => ({ role: m.role, content: m.text })),
+          history: chatMessages.map((m) => ({ role: m.role === "light" ? "assistant" : "user", content: m.text })),
         }),
       });
       if (res.ok) {
@@ -327,17 +256,9 @@ export function LightDashboard() {
   }
 
   const isDone = run?.status === "completed";
-
-  // Animate processing steps at a fixed pace, independent of backend speed.
-  // Snaps to complete when backend finishes, never goes backwards.
-  useEffect(() => {
-    if (step !== "processing") { setAnimIdx(0); return; }
-    if (isDone) { setAnimIdx(PROC_STEPS.length); return; }
-    if (animIdx >= PROC_STEPS.length - 1) return;
-    const t = setTimeout(() => setAnimIdx((n) => Math.min(n + 1, PROC_STEPS.length - 1)), 600);
-    return () => clearTimeout(t);
-  }, [step, isDone, animIdx]);
-  const procIdx = isDone ? PROC_STEPS.length : animIdx;
+  const liveEvents = run?.events ?? [];
+  const agentVisuals = buildAgentVisuals(liveEvents);
+  const feedItems = useMemo(() => buildFeedItems(run), [run]);
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -533,46 +454,38 @@ export function LightDashboard() {
               }
             </div>
             <div className={styles.timeline}>
-              {PROC_STEPS.map((s, i) => {
-                const done = isDone || i < procIdx;
-                const active = !isDone && i === procIdx && i < PROC_STEPS.length;
-                return (
-                  <div key={s.label} className={i <= procIdx ? styles.timelineItem : styles.timelineItemDim}>
-                    <div className={`${styles.timelineDot} ${done ? styles.timelineDotDone : active ? styles.timelineDotActive : styles.timelineDotOff}`}>
-                      {done
-                        ? <svg width="14" height="14" fill="none" stroke="white" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/>
-                          </svg>
-                        : <span>{s.emoji}</span>}
-                    </div>
-                    <span className={done ? styles.timelineLabelDone : active ? styles.timelineLabelActive : styles.timelineLabel}>
-                      {s.label}
-                    </span>
+              {(liveEvents.length ? liveEvents.slice(-6) : [undefined]).map((event) => (
+                <div key={event?.id ?? "waiting"} className={event ? styles.timelineItem : styles.timelineItemDim}>
+                  <div className={`${styles.timelineDot} ${event?.status === "completed" ? styles.timelineDotDone : event ? styles.timelineDotActive : styles.timelineDotOff}`}>
+                    {event?.status === "completed"
+                      ? <svg width="14" height="14" fill="none" stroke="white" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/>
+                        </svg>
+                      : <span>{event ? agentIcon(event.agent) : "…"}</span>}
                   </div>
-                );
-              })}
+                  <span className={event?.status === "completed" ? styles.timelineLabelDone : event ? styles.timelineLabelActive : styles.timelineLabel}>
+                    {event ? `${event.agent.replace("_", " ")}: ${event.title}` : "Waiting for live agent events"}
+                  </span>
+                </div>
+              ))}
             </div>
             {error && <p style={{ color: "#DC2626", fontSize: "13px", marginTop: "20px" }}>{error}</p>}
 
-            {/* Sponsor logos light up as agents fire */}
+            <div className={styles.agentConstellation}>
+              {agentVisuals.map((agent) => (
+                <article key={agent.agent} className={styles.agentNode} data-live={agent.live || undefined}>
+                  <img src={`https://www.google.com/s2/favicons?sz=64&domain=${agent.domain}`} alt="" />
+                  <div>
+                    <strong>{agent.label}</strong>
+                    <span>{agent.latest ?? "standing by"}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+
             <div style={{ marginTop: "28px", paddingTop: "20px", borderTop: "1px solid #F1F5F9" }}>
-              <p className={styles.sponsorLabelLight}>Powered by</p>
-              <div className={styles.sponsorRailLight}>
-                {(["tensorlake.ai","trynia.ai","hyperspell.com","convex.dev","x.com","openai.com","clinicaltrials.gov","ncbi.nlm.nih.gov"] as const).map((domain, i) => {
-                  const names = ["Tensorlake","Nia","Hyperspell","Convex","X","OpenAI","ClinicalTrials.gov","PubMed"];
-                  const statuses = ["sandbox","web + papers","memory","realtime state","patient signals","reasoning","trial records","research"];
-                  const live = i < Math.min(procIdx + 1, 8);
-                  return (
-                    <article key={domain} className={styles.sponsorCardLight} data-live={live || undefined}>
-                      <img src={`https://www.google.com/s2/favicons?sz=64&domain=${domain}`} alt="" />
-                      <div>
-                        <strong>{names[i]}</strong>
-                        <span>{live ? "active" : statuses[i]}</span>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
+              <p className={styles.sponsorLabelLight}>Live integrations</p>
+              <SponsorRail events={liveEvents} capabilities={run?.capabilities} variant="light" />
             </div>
           </div>
         </div>
@@ -699,9 +612,10 @@ export function LightDashboard() {
                     <p style={{ fontSize:"13px", color:"#9CA3AF" }}>from 18,000+ recruiting cancer trials · ranked by match confidence</p>
                   </div>
                   <div style={{ display:"grid", gap:"16px" }}>
-                    {!(run?.trials?.length) && <Empty text={isProcessing ? "Agents are working — matches will appear shortly…" : "No trials yet."} />}
-                    {(run?.trials ?? []).map((trial, idx) => (
+                  {!(run?.trials?.length) && <Empty text={isProcessing ? "Live agents are streaming evidence and trial retrieval now." : "No trials yet."} />}
+                  {(run?.trials ?? []).map((trial, idx) => (
                       <TrialCardNew key={trial.nctId} trial={trial} idx={idx}
+                        voiceTheme={run?.patientVoice?.[idx % Math.max(run?.patientVoice?.length ?? 1, 1)]}
                         onDetail={() => { setSelectedTrial(trial); setDetailTab("sideeffects"); }}
                         onApply={() => { setSelectedTrial(trial); setPatientTab("prepare"); }}
                         onCommunity={() => setPatientTab("community")} />
@@ -819,56 +733,16 @@ export function LightDashboard() {
                     </>
                   )}
                   <div style={{ height:"1px", background:"#F1F5F9" }}/>
-                  <div>
-                    <h2 style={{ fontFamily:"'Fraunces',serif", fontSize:"20px", fontWeight:600, color:"#0D1117", marginBottom:"4px" }}>Connect with someone</h2>
-                    <p style={{ fontSize:"12px", color:"#9CA3AF", marginBottom:"14px" }}>People who've been through a similar trial and are open to a conversation</p>
-                    <div style={{ display:"grid", gap:"12px" }}>
-                      {COMMUNITY_PROFILES.map((p, idx) => (
-                        <div key={p.id} className="panel" style={{ padding:"18px" }}>
-                          <div style={{ display:"flex", alignItems:"flex-start", gap:"14px", marginBottom:"12px" }}>
-                            <div style={{ width:48, height:48, borderRadius:14, flexShrink:0, background:["#1D4ED8","#2563EB","#3B82F6"][idx%3], display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:700, fontSize:18 }}>{p.name[0]}</div>
-                            <div style={{ flex:1 }}>
-                              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:"8px" }}>
-                                <div>
-                                  <span style={{ fontWeight:700, fontSize:"14px", color:"#0D1117" }}>{p.name}, {p.age}</span>
-                                  <span style={{ fontSize:"13px", color:"#9CA3AF", marginLeft:"8px" }}>{p.diagnosis}</span>
-                                </div>
-                                <span style={{ fontSize:"11px", fontWeight:700, padding:"3px 10px", borderRadius:"999px", flexShrink:0, background:p.active?"#DBEAFE":"#D1FAE5", color:p.active?"#1E40AF":"#065F46" }}>{p.status}</span>
-                              </div>
-                              <p style={{ fontSize:"12px", color:"#9CA3AF", marginTop:"4px" }}>Enrolled {p.enrolled} · {p.trial}</p>
-                            </div>
-                          </div>
-                          <p style={{ fontSize:"13px", color:"#374151", lineHeight:1.6, fontStyle:"italic", borderLeft:"2px solid #BFDBFE", paddingLeft:"12px", marginBottom:"12px" }}>"{p.quote}"</p>
-                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                            <div style={{ display:"flex", gap:"6px" }}>
-                              {p.tags.map(t => <span key={t} style={{ fontSize:"11px", background:"#F1F5F9", color:"#64748B", padding:"3px 10px", borderRadius:"999px" }}>{t}</span>)}
-                            </div>
-                            {messageSent.has(p.id)
-                              ? <p style={{ fontSize:"13px", color:"#059669", fontWeight:700 }}>✓ Sent!</p>
-                              : <button className="btn-primary" style={{ padding:"8px 18px", fontSize:"13px" }} onClick={() => setMessageTarget(p.id)}>Message {p.name} →</button>
-                            }
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                   <div className={styles.optInCard}>
                     <div className={styles.optInRow}>
                       <div className={styles.optInIcon}>
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m0-4a4 4 0 110-8 4 4 0 010 8zm8 0a4 4 0 100-8 4 4 0 000 8z"/>
                         </svg>
                       </div>
                       <div style={{ flex:1 }}>
-                        <p className={styles.optInTitle}>Help someone like you</p>
-                        <p className={styles.optInSub}>After your trial, would you be open to answering questions for others?</p>
-                        <label className={styles.checkbox} onClick={() => setOptIn(v => !v)}>
-                          <div className={`${styles.checkboxBox} ${optIn ? styles.checkboxBoxChecked : ""}`}>
-                            {optIn && <svg width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>}
-                          </div>
-                          <span className={styles.checkboxLabel}>Yes, add me to the community after my trial</span>
-                        </label>
-                        {optIn && <p className={styles.optInSuccess}>Saved — thank you.</p>}
+                        <p className={styles.optInTitle}>Opt-in patient network</p>
+                        <p className={styles.optInSub}>No consented patient-contact database is connected to this run. When the backend has opted-in profiles, this section can show real patient matches by condition, trial context, and consent status.</p>
                       </div>
                     </div>
                   </div>
@@ -952,73 +826,31 @@ export function LightDashboard() {
                     </strong>
                   </div>
                   <div className={styles.feedList}>
-                    {FEED_ITEMS.map(item => {
-                      const a = item as Record<string, string | number | undefined>;
-                      const isPubmed = item.type === "pubmed";
-                      const isTrial  = item.type === "trial";
-                      const isForum  = item.type === "forum";
-                      const tagStyle = isPubmed ? styles.feedTagPubmed : isTrial ? styles.feedTagX : styles.feedTagForum;
-                      const tagLabel = isPubmed ? "PubMed" : isTrial ? "ClinicalTrials.gov" : a.source;
-                      const iconBg   = isPubmed ? styles.feedIconPubmed : isTrial ? styles.feedIconX : styles.feedIconForum;
-                      const icon     = isPubmed ? "📄" : isTrial ? "🔬" : "💬";
-
+                    {!feedItems.length && <Empty text={isProcessing ? "Live feed sources will appear as agents retrieve trials, papers, and public signals." : "Run Light to build a live feed from real sources."} />}
+                    {feedItems.map((item) => {
+                      const isPaper = item.kind === "paper";
+                      const isTrial = item.kind === "trial";
+                      const isPatient = item.kind === "patient";
+                      const tagStyle = isPaper ? styles.feedTagPubmed : isTrial ? styles.feedTagX : isPatient ? styles.feedTagForum : styles.feedTagExpert;
+                      const iconBg = isPaper ? styles.feedIconPubmed : isTrial ? styles.feedIconX : isPatient ? styles.feedIconForum : styles.feedIconExpert;
+                      const icon = isPaper ? "P" : isTrial ? "NCT" : isPatient ? "X" : "WEB";
                       return (
-                        <a
-                          key={item.id}
-                          href={String(a.url ?? "#")}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ textDecoration: "none", display: "block" }}
-                        >
-                          <div className={styles.feedItem} style={{ cursor: "pointer", transition: "box-shadow 0.18s" }}
+                        <a key={item.id} href={item.url ?? "#"} target="_blank" rel="noreferrer" style={{ textDecoration: "none", display: "block", pointerEvents: item.url ? "auto" : "none" }}>
+                          <div className={styles.feedItem} style={{ cursor: item.url ? "pointer" : "default", transition: "box-shadow 0.18s" }}
                             onMouseOver={e => (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.10)"}
                             onMouseOut={e => (e.currentTarget as HTMLElement).style.boxShadow = ""}>
-
                             <div className={styles.feedItemTop}>
                               <div className={`${styles.feedIcon} ${iconBg}`}>{icon}</div>
                               <div className={styles.feedMeta}>
-                                <div className={styles.feedHandle}>
-                                  {isPubmed ? a.journal : isTrial ? a.nctId : a.source}
-                                </div>
-                                <div className={styles.feedSourceLabel}>
-                                  {isPubmed ? "Published research" : isTrial ? `${a.phase} · ${a.status}` : "Patient forum"}
-                                </div>
+                                <div className={styles.feedHandle}>{item.sourceLabel}</div>
+                                <div className={styles.feedSourceLabel}>{item.detailLabel}</div>
                               </div>
-                              <span className={styles.feedTime}>
-                                {a.date || a.time}
-                              </span>
                             </div>
-
-                            {/* Title */}
-                            <p className={styles.feedTitle} style={{ marginBottom: "6px" }}>
-                              {a.title || a.text}
-                            </p>
-
-                            {/* Summary / body for forum or trial */}
-                            {a.summary && (
-                              <p style={{ fontSize: "12px", color: "#6B7280", lineHeight: 1.5, marginBottom: "10px" }}>
-                                {a.summary}
-                              </p>
-                            )}
-                            {isForum && !a.summary && (
-                              <p style={{ fontSize: "12px", color: "#6B7280", lineHeight: 1.5, marginBottom: "10px" }}>
-                                {a.text}
-                              </p>
-                            )}
-
+                            <p className={styles.feedTitle} style={{ marginBottom: "6px" }}>{item.title}</p>
+                            {item.body && <p style={{ fontSize: "12px", color: "#6B7280", lineHeight: 1.5, marginBottom: "10px" }}>{item.body}</p>}
                             <div className={styles.feedFooter}>
-                              <span className={`${styles.feedTag} ${tagStyle}`}>{tagLabel}</span>
-                              {isForum && a.replies && (
-                                <span className={styles.feedStat}>💬 {a.replies} replies</span>
-                              )}
-                              {isTrial && a.sponsor && (
-                                <span className={styles.feedStat} style={{ marginLeft: "auto" }}>
-                                  {a.sponsor}
-                                </span>
-                              )}
-                              <span style={{ marginLeft: "auto", fontSize: "11px", color: "#BFDBFE", fontWeight: 600 }}>
-                                Read →
-                              </span>
+                              <span className={`${styles.feedTag} ${tagStyle}`}>{isPaper ? "PubMed" : isTrial ? "ClinicalTrials.gov" : isPatient ? "X / patient voice" : "Expert context"}</span>
+                              {item.url && <span style={{ marginLeft: "auto", fontSize: "11px", color: "#BFDBFE", fontWeight: 600 }}>Open →</span>}
                             </div>
                           </div>
                         </a>
@@ -1076,9 +908,9 @@ export function LightDashboard() {
                 {selectedTrial.distanceMiles && <span className={styles.detailChip}>{selectedTrial.distanceMiles} mi</span>}
               </div>
               <div className={styles.detailTabs}>
-                {(["sideeffects","evidence","people"] as const).map(t => (
+                {(["sideeffects","evidence","signals"] as const).map(t => (
                   <button key={t} onClick={() => setDetailTab(t)} className={`${styles.detailTab} ${detailTab===t ? styles.detailTabActive : ""}`}>
-                    {t==="sideeffects"?"Side effects":t==="evidence"?"Evidence":"People"}
+                    {t==="sideeffects"?"Profile signals":t==="evidence"?"Evidence":"Public context"}
                   </button>
                 ))}
               </div>
@@ -1229,25 +1061,40 @@ export function LightDashboard() {
                   </>
                 );
               })()}
-              {detailTab==="people" && (
+              {detailTab==="signals" && (
                 <>
-                  {COMMUNITY_PROFILES.slice(0,2).map((p,idx) => (
-                    <div key={p.id} className="panel" style={{padding:"16px",marginBottom:"10px"}}>
-                      <div style={{display:"flex",alignItems:"flex-start",gap:"12px",marginBottom:"10px"}}>
-                        <div className={styles.personAvatar} style={{width:44,height:44,background:["#1D4ED8","#2563EB"][idx%2]}}>{p.name[0]}</div>
-                        <div>
-                          <div className={styles.personName}>{p.name}, {p.age}</div>
-                          <div className={styles.personDiag}>{p.diagnosis}</div>
-                          <span className={`${styles.personStatus} ${p.active?styles.personStatusActive:styles.personStatusDone}`}>{p.status}</span>
-                        </div>
+                  {!(run?.patientVoice?.length || run?.expertSources?.length) && <Empty text="Public patient and expert context will appear after the agents retrieve live sources." />}
+                  {(run?.patientVoice ?? []).slice(0,4).map((theme) => (
+                    <div key={theme.theme} className="panel" style={{padding:"16px",marginBottom:"10px"}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:"10px",marginBottom:"8px"}}>
+                        <div className={styles.personName}>{theme.theme}</div>
+                        <span className={styles.personStatus}>{theme.signalStrength} signal</span>
                       </div>
-                      <p className={styles.personQuote}>"{p.quote}"</p>
-                      {messageSent.has(p.id)
-                        ? <p style={{fontSize:"13px",color:"#059669",fontWeight:700}}>✓ Message sent!</p>
-                        : <button className="btn-primary" style={{width:"100%",padding:"10px",fontSize:"13px"}} onClick={() => setMessageTarget(p.id)}>Send a message →</button>}
+                      <p className={styles.personQuote}>{theme.summary}</p>
+                      {!!theme.sources?.length && (
+                        <div style={{display:"flex",flexWrap:"wrap",gap:"8px",marginTop:"10px"}}>
+                          {theme.sources.slice(0,3).map((source) => source.url ? (
+                            <a key={`${source.source}-${source.url}`} href={source.url} target="_blank" rel="noreferrer" className={styles.neonLink}>
+                              {source.source.toUpperCase()} source
+                            </a>
+                          ) : null)}
+                        </div>
+                      )}
                     </div>
                   ))}
+                  {(run?.expertSources ?? []).slice(0,4).map((source) => (
+                    <a key={`${source.source}-${source.url ?? source.title}`} href={source.url ?? "#"} target="_blank" rel="noreferrer" className="panel" style={{padding:"16px",marginBottom:"10px",display:"block",textDecoration:"none"}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:"10px",marginBottom:"8px"}}>
+                        <div className={styles.personName}>{source.title}</div>
+                        <span className={styles.personStatus}>{source.source.toUpperCase()}</span>
+                      </div>
+                      {source.snippet && <p className={styles.personQuote}>{source.snippet}</p>}
+                    </a>
+                  ))}
                 </>
+              )}
+              {run?.runId && (
+                <TrialChatPanel apiBase={API} runId={run.runId} runStatus={run.status} trial={selectedTrial} />
               )}
             </div>
             <div className={styles.detailFooter}>
@@ -1260,50 +1107,22 @@ export function LightDashboard() {
         </div>
       )}
 
-      {/* Message modal */}
-      {messageTarget && (() => {
-        const p = COMMUNITY_PROFILES.find(x => x.id===messageTarget);
-        if (!p) return null;
-        return (
-          <div className={styles.modalOverlay} onClick={e => { if(e.target===e.currentTarget) setMessageTarget(null); }}>
-            <div className={styles.modalCard}>
-              <div className={styles.modalHeader}>
-                <div className={styles.personAvatar} style={{width:40,height:40,borderRadius:"12px",background:"#2563EB",fontSize:"16px"}}>{p.name[0]}</div>
-                <div><div style={{fontSize:"15px",fontWeight:700}}>Message {p.name}</div><div style={{fontSize:"12px",color:"#9CA3AF"}}>{p.status}</div></div>
-                <button className={styles.modalCloseBtn} onClick={() => setMessageTarget(null)}>
-                  <svg width="14" height="14" fill="none" stroke="#6B7280" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-              </div>
-              <div className={styles.modalBody}>
-                <textarea className={styles.modalTextarea} rows={6}
-                  defaultValue={`Hi ${p.name},\n\nI'm looking into a clinical trial and would love to hear about your experience if you're open to it.\n\nThank you`}/>
-                <div className={styles.modalActions}>
-                  <button className="btn-outline" onClick={() => setMessageTarget(null)}>Cancel</button>
-                  <button className="btn-primary" onClick={() => { setMessageSent(s => new Set([...s, messageTarget])); setMessageTarget(null); }}>Send message</button>
-                </div>
-                <p className={styles.modalNote}>{p.name} has opted in to receiving messages.</p>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }
 
 // ─── Trial card ───────────────────────────────────────────────────────────────
-function TrialCardNew({ trial, idx, onDetail, onApply, onCommunity }: {
-  trial: TrialCardType; idx: number;
+function TrialCardNew({ trial, idx, voiceTheme, onDetail, onApply, onCommunity }: {
+  trial: TrialCardType; idx: number; voiceTheme?: PatientVoiceTheme;
   onDetail: () => void; onApply: () => void; onCommunity: () => void;
 }) {
   const loc = trial.locations[0];
   const locText = loc ? [loc.facility, loc.city, loc.state].filter(Boolean).join(", ") : "Location not listed";
-  const community = COMMUNITY_PROFILES[idx % COMMUNITY_PROFILES.length];
   return (
     <article className={styles.trialCardNew}>
       <div className={`${styles.trialHeader} ${HDR[idx%HDR.length]}`}>
         <div className={styles.recruitingBadge}><span className={styles.recruitingDot}/>{trial.status??"Recruiting"}</div>
-        <div className={`${styles.matchBadge} ${MBG[idx%MBG.length]}`}>{MLB[idx%MLB.length]}</div>
+        <div className={`${styles.matchBadge} ${styles.matchBadgeGood}`}>Needs review</div>
         <span className={styles.phaseBadge}>{trial.phase??"Phase not listed"}</span>
       </div>
       <div className={styles.trialBody}>
@@ -1319,24 +1138,26 @@ function TrialCardNew({ trial, idx, onDetail, onApply, onCommunity }: {
         <div className={styles.matchReasons}>
           {trial.matchedCriteria.slice(0,4).map(c => (
             <div key={c} className={styles.matchReason}>
-              <div className={`${styles.matchReasonCheck} ${CHK[idx%CHK.length]}`}>
+              <div className={`${styles.matchReasonCheck} ${styles.matchReasonCheckGood}`}>
                 <svg width="10" height="10" fill="none" stroke="white" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>
               </div>
               <span className={styles.matchReasonText}>{c}</span>
             </div>
           ))}
         </div>
-        <div className={styles.communityQuote}>
-          <div className={styles.quoteAvatar}>{community.name[0]}</div>
-          <div className={styles.quoteBody}>
-            <div><span className={styles.quotePerson}>{community.name}, {community.age}</span><span className={styles.quoteStatus}> · {community.status}</span></div>
-            <p className={styles.quoteText}>"{community.quote}"</p>
-            <div className={styles.quoteFooter}>
-              <span className={styles.quoteSource}>Smart Patients</span>
-              <button className={styles.quoteTalk} onClick={e=>{e.stopPropagation();onCommunity();}}>Talk to them →</button>
+        {voiceTheme && (
+          <div className={styles.communityQuote}>
+            <div className={styles.quoteAvatar}>X</div>
+            <div className={styles.quoteBody}>
+              <div><span className={styles.quotePerson}>{voiceTheme.theme}</span><span className={styles.quoteStatus}> · {voiceTheme.sentiment}</span></div>
+              <p className={styles.quoteText}>{voiceTheme.summary}</p>
+              <div className={styles.quoteFooter}>
+                <span className={styles.quoteSource}>{voiceTheme.sourceCount} public signals</span>
+                <button className={styles.quoteTalk} onClick={e=>{e.stopPropagation();onCommunity();}}>Open signals →</button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
         <div className={styles.cardActions}>
           <button className="btn-outline" onClick={onDetail}>Side effects + evidence</button>
           <button className="btn-primary" onClick={onApply}>Apply now →</button>
@@ -1344,6 +1165,90 @@ function TrialCardNew({ trial, idx, onDetail, onApply, onCommunity }: {
       </div>
     </article>
   );
+}
+
+const AGENT_META: Record<AgentName, { label: string; domain: string; icon: string }> = {
+  system: { label: "Run Control", domain: "convex.dev", icon: "●" },
+  conversation: { label: "Conversation", domain: "openai.com", icon: "C" },
+  trial: { label: "Trial Agent", domain: "clinicaltrials.gov", icon: "T" },
+  research: { label: "Research Agent", domain: "ncbi.nlm.nih.gov", icon: "R" },
+  patient_voice: { label: "Voice Agent", domain: "x.com", icon: "X" },
+  eligibility: { label: "Eligibility", domain: "trynia.ai", icon: "E" },
+  burden: { label: "Burden", domain: "tensorlake.ai", icon: "B" },
+  synthesis: { label: "Synthesis", domain: "openai.com", icon: "S" },
+  safety: { label: "Safety", domain: "hyperspell.com", icon: "✓" },
+};
+
+function agentIcon(agent: AgentName): string {
+  return AGENT_META[agent]?.icon ?? "●";
+}
+
+function buildAgentVisuals(events: AgentEvent[]) {
+  return (Object.keys(AGENT_META) as AgentName[])
+    .filter((agent) => agent !== "system")
+    .map((agent) => {
+      const latest = [...events].reverse().find((event) => event.agent === agent);
+      const meta = AGENT_META[agent];
+      return {
+        agent,
+        label: meta.label,
+        domain: meta.domain,
+        live: Boolean(latest && latest.status !== "queued"),
+        latest: latest ? latest.title : undefined,
+      };
+    });
+}
+
+function buildFeedItems(run: TrialIntelligenceState | null): LiveFeedItem[] {
+  if (!run) return [];
+  const trialItems = (run.trials ?? []).slice(0, 4).map((trial): LiveFeedItem => ({
+    id: `trial-${trial.nctId}`,
+    kind: "trial",
+    title: trial.title,
+    sourceLabel: trial.nctId,
+    detailLabel: [trial.phase, trial.status].filter(Boolean).join(" · ") || "Official trial record",
+    body: trial.matchedCriteria.slice(0, 2).join(" · "),
+    url: trial.sourceUrl,
+  }));
+  const paperItems = (run.research?.selectedPapers ?? []).slice(0, 5).map((paper, index): LiveFeedItem => ({
+    id: `paper-${paper.url ?? paper.title}-${index}`,
+    kind: "paper",
+    title: paper.title,
+    sourceLabel: paper.source,
+    detailLabel: [paper.year, paper.authors?.slice(0, 2).join(", ")].filter(Boolean).join(" · ") || "Research paper",
+    body: paper.relevanceReason || safeSnippet(paper.abstract),
+    url: paper.url,
+  }));
+  return [...trialItems, ...paperItems, ...sourceFeedItems(run.patientVoice ?? [], run.expertSources ?? [])].slice(0, 12);
+}
+
+function sourceFeedItems(themes: PatientVoiceTheme[], expertSources: PatientVoiceSource[]): LiveFeedItem[] {
+  const patientItems = themes.flatMap((theme, themeIndex) =>
+    (theme.sources ?? []).slice(0, 2).map((source, sourceIndex): LiveFeedItem => ({
+      id: `voice-${themeIndex}-${sourceIndex}-${source.url ?? source.title}`,
+      kind: "patient",
+      title: theme.theme,
+      sourceLabel: source.source.toUpperCase(),
+      detailLabel: `${theme.sentiment} · ${theme.signalStrength} signal`,
+      body: source.snippet ?? theme.summary,
+      url: source.url,
+    })),
+  );
+  const expertItems = expertSources.slice(0, 5).map((source, index): LiveFeedItem => ({
+    id: `expert-${index}-${source.url ?? source.title}`,
+    kind: "expert",
+    title: source.title,
+    sourceLabel: source.source.toUpperCase(),
+    detailLabel: "Expert or institution context",
+    body: source.snippet,
+    url: source.url,
+  }));
+  return [...patientItems, ...expertItems];
+}
+
+function safeSnippet(value?: string): string | undefined {
+  if (!value) return undefined;
+  return value.length > 220 ? `${value.slice(0, 220)}...` : value;
 }
 
 // ─── Helpers (DO NOT CHANGE) ──────────────────────────────────────────────────

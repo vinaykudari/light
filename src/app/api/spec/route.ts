@@ -90,7 +90,7 @@ export function GET() {
           description: [
             "Use after a run is completed.",
             "The backend indexes all clinical trial source records from the completed run, research papers, PDFs/pages, X/web sentiment links, and extracted run context into Nia where possible, then answers with LLM synthesis.",
-            "Questions that mention an NCT ID are scoped to that specific clinical trial. Questions about papers or sentiment are scoped to paper/web or X/web sources.",
+            "Pass trialId to scope chat to a selected clinical trial record plus the indexed papers, X/web patient voice, expert context, and run evidence. Questions that mention an NCT ID are also scoped to that trial.",
             "Keep chat history short. Send the previous few user/assistant messages in history for continuity.",
           ].join("\n\n"),
           requestBody: {
@@ -108,7 +108,8 @@ export function GET() {
                   trialQuestion: {
                     value: {
                       runId: "run_dfa4ce92-719f-435f-bc83-6f572ad00cb4",
-                      question: "For NCT06847191, what does the record say is relevant and what should we verify before referral?",
+                      trialId: "NCT06847191",
+                      question: "What does the record say is relevant and what should we verify before referral?",
                       history: [],
                     },
                   },
@@ -220,7 +221,29 @@ function schemas() {
     PatientVoiceSource: { type: "object", properties: { title: { type: "string" }, url: { type: "string" }, source: { enum: ["x", "web", "seed"] }, snippet: { type: "string" } } },
     EligibilityRow: { type: "object", properties: { trialId: { type: "string" }, trialTitle: { type: "string" }, matchedCriteria: { type: "array", items: { type: "string" } }, missingData: { type: "array", items: { type: "string" } }, possibleExclusionRisks: { type: "array", items: { type: "string" } }, reviewNote: { type: "string" } } },
     GeneratedArtifact: { type: "object", properties: { runId: { type: "string" }, kind: { enum: ["patient_briefing", "clinician_checklist", "coordinator_email", "missing_data_checklist"] }, title: { type: "string" }, content: { type: "string" } } },
-    ChatRequest: { type: "object", required: ["runId"], properties: { runId: { type: "string" }, question: { type: "string" }, action: { enum: ["index"] }, history: { type: "array", items: { type: "object", properties: { role: { enum: ["user", "assistant"] }, content: { type: "string" } } } } } },
+    ChatRequest: {
+      type: "object",
+      required: ["runId"],
+      properties: {
+        runId: { type: "string" },
+        question: { type: "string" },
+        trialId: {
+          type: "string",
+          description: "Optional NCT ID used to scope chat to a selected trial while still including indexed papers, X/web patient voice, expert context, and run evidence.",
+        },
+        action: { enum: ["index"] },
+        history: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              role: { enum: ["user", "assistant"] },
+              content: { type: "string" },
+            },
+          },
+        },
+      },
+    },
     ChatIndexResponse: { type: "object", properties: { runId: { type: "string" }, ready: { type: "boolean" }, totalSources: { type: "number" }, indexedSources: { type: "array", items: { type: "object" } }, indexedCount: { type: "number" }, failedCount: { type: "number" } } },
     ChatResponse: { type: "object", properties: { answer: { type: "string" }, indexedSources: { type: "array", items: { type: "object" } }, niaAnswer: { type: "string" }, sourceMode: { enum: ["real", "mixed", "mock"] }, scope: { type: "object" } } },
   };

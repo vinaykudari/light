@@ -11,6 +11,7 @@ export type ChatMessage = {
 export async function answerClinicalResearchChat(input: {
   run: TrialIntelligenceState;
   question: string;
+  trialId?: string;
   history?: ChatMessage[];
 }): Promise<{
   answer: string;
@@ -20,7 +21,7 @@ export async function answerClinicalResearchChat(input: {
   scope: ChatScope;
 }> {
   const indexedSources = await ensureRunIndexedOnNia(input.run);
-  const scope = detectScope(input.question, input.run, indexedSources);
+  const scope = detectScope(input.question, input.run, indexedSources, input.trialId);
   const context = buildRunContext(input.run, indexedSources, scope);
   const nia = await queryNiaCorpus({
     question: input.question,
@@ -75,15 +76,20 @@ type ChatScope = {
   sources: NiaIndexedSource[];
 };
 
-function detectScope(question: string, run: TrialIntelligenceState, sources: NiaIndexedSource[]): ChatScope {
+function detectScope(question: string, run: TrialIntelligenceState, sources: NiaIndexedSource[], trialId?: string): ChatScope {
+  const explicitNct = normalizeNct(trialId);
+  if (explicitNct) {
+    const scoped = trialScopedSources(explicitNct, sources);
+    if (scoped.length) return { kind: "trial", trialId: explicitNct, sources: scoped };
+  }
   const nct = question.match(/\bNCT\d{8}\b/i)?.[0]?.toUpperCase();
   if (nct) {
-    const scoped = sources.filter((source) => source.url.includes(nct) || source.title.toUpperCase().includes(nct));
+    const scoped = trialScopedSources(nct, sources);
     if (scoped.length) return { kind: "trial", trialId: nct, sources: scoped };
   }
   if (/\b(this|the|selected)\s+trial\b/i.test(question) && run.trials[0]) {
     const trialId = run.trials[0].nctId;
-    const scoped = sources.filter((source) => source.url.includes(trialId) || source.title.includes(trialId));
+    const scoped = trialScopedSources(trialId, sources);
     if (scoped.length) return { kind: "trial", trialId, sources: scoped };
   }
   if (/\bpaper|study|research|publication|pdf\b/i.test(question)) {
@@ -114,16 +120,41 @@ function buildRunContext(run: TrialIntelligenceState, sources: NiaIndexedSource[
     exclusionRisks: trial.exclusionRisks,
     coordinatorQuestions: trial.coordinatorQuestions,
   }));
+  const scopedTrials = scope.trialId ? trialCards.filter((trial) => trial.nctId === scope.trialId) : trialCards;
+  const researchSources = run.research?.selectedPapers.map((paper) => `${paper.title}: ${paper.url ?? "no url"} (${paper.relevanceReason})`) ?? [];
+  const patientSources = run.patientVoice.flatMap((theme) => (theme.sources ?? []).map((source) => `${theme.theme}: ${source.title}: ${source.url ?? "no url"}`));
   return [
     `Chat scope: ${scope.kind}${scope.trialId ? ` ${scope.trialId}` : ""}`,
     `Condition context: ${run.patient.possibleConditionContext ?? run.patient.diagnosis}`,
     `Symptoms: ${(run.patient.symptoms ?? []).join(", ")}`,
     `Trials: ${run.trials.map((trial) => `${trial.nctId} ${trial.title}`).join("; ")}`,
-    `Clinical trial cards JSON: ${JSON.stringify(trialCards)}`,
+    `Clinical trial cards JSON: ${JSON.stringify(scopedTrials.length ? scopedTrials : trialCards)}`,
     `Research themes: ${run.research?.themes.join("; ") ?? "none yet"}`,
+    `Research paper links: ${researchSources.join("; ") || "none yet"}`,
     `Patient voice themes: ${run.patientVoice.map((theme) => `${theme.theme}: ${theme.summary}`).join("; ")}`,
+    `Patient voice source links: ${patientSources.join("; ") || "none yet"}`,
     `Expert context sources: ${(run.expertSources ?? []).map((source) => `${source.title}: ${source.url ?? "no url"}`).join("; ") || "none yet"}`,
     `Eligibility gaps: ${run.eligibility.flatMap((row) => row.missingData).join("; ")}`,
     `Indexed corpus: ${sources.filter((source) => source.status === "indexed").length}/${sources.length} Nia sources`,
   ].join("\n");
+}
+
+function trialScopedSources(trialId: string, sources: NiaIndexedSource[]): NiaIndexedSource[] {
+  const trialSources = sources.filter((source) => source.url.toUpperCase().includes(trialId) || source.title.toUpperCase().includes(trialId));
+  const evidenceSources = sources.filter((source) => source.kind === "paper" || source.kind === "x" || source.kind === "web");
+  return dedupeSources([...trialSources, ...evidenceSources]);
+}
+
+function dedupeSources(sources: NiaIndexedSource[]): NiaIndexedSource[] {
+  const seen = new Set<string>();
+  return sources.filter((source) => {
+    const key = source.sourceId ?? source.url;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizeNct(value?: string): string | undefined {
+  return value?.match(/\bNCT\d{8}\b/i)?.[0]?.toUpperCase();
 }

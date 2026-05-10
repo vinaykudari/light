@@ -79,12 +79,13 @@ To pre-index without asking a question:
 { "runId": "run_example", "action": "index" }
 \`\`\`
 
-To ask about a specific clinical trial, mention the NCT ID. The chat agent scopes retrieval to that clinical trial source when possible.
+To ask about a specific clinical trial, pass trialId. The chat agent scopes retrieval to that trial record plus the indexed papers, X/web patient voice, expert context, and run evidence.
 
 \`\`\`json
 {
   "runId": "run_example",
-  "question": "For NCT06847191, what should we verify before referral?",
+  "trialId": "NCT06847191",
+  "question": "What should we verify before referral?",
   "history": []
 }
 \`\`\`
