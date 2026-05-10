@@ -9,6 +9,21 @@ export const longCovidTranscript: ConversationTurn[] = [
   { speaker: "patient", text: "Yes, I am in San Francisco. I just want to know what to ask my doctor." },
 ];
 
+export const longCovidClinicalNoteTranscript: ConversationTurn[] = [
+  {
+    speaker: "doctor",
+    text: "Uploaded synthetic clinical note. Patient is a 34-year-old adult in San Francisco, California. COVID infection occurred approximately 8 months ago by home antigen testing per patient report. Since infection, symptoms have persisted longer than 3 months.",
+  },
+  {
+    speaker: "patient",
+    text: "Reported symptoms include brain fog with word-finding difficulty during meetings, crushing fatigue after small tasks, delayed post-exertional crash for one to two days after short walks, dizziness and fast heart rate when standing, and poor sleep.",
+  },
+  {
+    speaker: "doctor",
+    text: "Patient goal: wants to know which research studies or clinical trial options may be worth discussing with their clinician. Missing pre-screening details include documented COVID history, hospitalization or ICU status, medication stability, other diagnoses that could explain symptoms, visit feasibility, blood collection willingness, and recent vaccination or medication changes.",
+  },
+];
+
 export const longCovidPatient: PatientProfile = {
   id: "conversation-demo",
   age: 34,

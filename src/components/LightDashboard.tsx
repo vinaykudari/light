@@ -1,13 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { seedPatient } from "@/lib/demo/seedPatient";
-import { longCovidTranscript, longCovidPatient } from "@/lib/demo/longCovidDemo";
+import { longCovidClinicalNoteTranscript, longCovidTranscript, longCovidPatient } from "@/lib/demo/longCovidDemo";
 import type {
   AgentEvent,
   AgentName,
-  PatientProfile,
-  PatientProfileInput,
   PatientVoiceSource,
   PatientVoiceTheme,
   TrialIntelligenceState, TrialCard as TrialCardType,
@@ -17,7 +14,6 @@ import { ArchitectureDiagram } from "./ArchitectureDiagram";
 import { ArtifactPanel } from "./ArtifactPanel";
 import type { ConversationPayload } from "./DoctorConversationDemo";
 import { EligibilityPanel } from "./EligibilityPanel";
-import type { PatientFormState } from "./PatientProfileForm";
 import { PatientVoicePanel } from "./PatientVoicePanel";
 import { ResearchPanel } from "./ResearchPanel";
 import { Empty } from "./DisplayPrimitives";
@@ -60,7 +56,6 @@ const API = "https://light.hackerpod.dev";
 // ─── Component ────────────────────────────────────────────────────────────────
 export function LightDashboard() {
   // ── Existing state + functions (DO NOT CHANGE) ───────────────────────────────
-  const [form] = useState<PatientFormState>(toForm(seedPatient));
   const [run, setRun] = useState<TrialIntelligenceState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isProcessing = run?.status === "created" || run?.status === "running";
@@ -79,17 +74,6 @@ export function LightDashboard() {
   }, [run, isProcessing]);
 
   const sourceMode = useMemo(() => (!run ? "demo ready" : `${run.sourceMode} mode`), [run]);
-
-  async function processIntelligence() {
-    setError(null);
-    const res = await fetch(`${API}/api/runs`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patient: toPatientInput(form) }),
-    });
-    if (!res.ok) { setError("Run could not be started."); return; }
-    setRun((await res.json()) as TrialIntelligenceState);
-  }
 
   async function processConversation(payload: ConversationPayload) {
     setError(null);
@@ -121,6 +105,8 @@ export function LightDashboard() {
   const [emailSent, setEmailSent]     = useState(false);
   const [trialEnrichment, setTrialEnrichment] = useState<Record<string, TrialEnrichment>>({});
   const [copied, setCopied]           = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
   // Conversation streaming state
   const [convCount, setConvCount]     = useState(0);
@@ -202,9 +188,22 @@ export function LightDashboard() {
     setStep("conversation");
   }
 
-  async function startUpload() {
+  async function startUpload(fileName = uploadedFileName ?? "synthetic-long-covid-clinical-note.svg") {
+    setUploadedFileName(fileName);
     setStep("processing");
-    await processIntelligence();
+    await processConversation({
+      patient: {
+        age: longCovidPatient.age,
+        diagnosis: "uploaded clinical note pending extraction",
+        biomarkers: [],
+        priorTherapies: ["none documented in uploaded synthetic note"],
+        location: longCovidPatient.location,
+        maxTravelMiles: longCovidPatient.maxTravelMiles,
+        preferences: ["uploaded synthetic clinical note", "wants doctor-reviewed research study options", "prefers low-burden visits"],
+        missingDataHints: [],
+      },
+      conversationTranscript: longCovidClinicalNoteTranscript,
+    });
   }
 
   // Pre-index run data into Nia when processing completes (makes chat fast)
@@ -352,9 +351,8 @@ export function LightDashboard() {
             </button>
 
             {/* Upload card */}
-            <button
-              onClick={startUpload}
-              style={{ background: "white", border: "2px solid #E2E8F0", borderRadius: "20px", padding: "32px 28px", textAlign: "left", cursor: "pointer", transition: "all 0.18s", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05)" }}
+            <div
+              style={{ background: "white", border: "2px solid #E2E8F0", borderRadius: "20px", padding: "32px 28px", textAlign: "left", transition: "all 0.18s", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05)" }}
               onMouseOver={e => { (e.currentTarget as HTMLElement).style.borderColor = "#2563EB"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; }}
               onMouseOut={e => { (e.currentTarget as HTMLElement).style.borderColor = "#E2E8F0"; (e.currentTarget as HTMLElement).style.transform = "none"; }}>
               <div style={{ fontSize: "32px", marginBottom: "16px" }}>📎</div>
@@ -364,10 +362,32 @@ export function LightDashboard() {
               <p style={{ fontSize: "13px", color: "#6B7280", lineHeight: 1.6, marginBottom: "20px" }}>
                 Drop a PDF, clinical note, lab report, or referral letter. Light reads it and extracts your profile.
               </p>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: "#2563EB" }}>
-                Upload →
-              </span>
-            </button>
+              <div style={{ display:"grid", gap:"10px" }}>
+                <img alt="Synthetic clinical note preview" src="/synthetic-long-covid-clinical-note.svg" style={{ width:"100%", borderRadius:"12px", border:"1px solid #E2E8F0", background:"#F8FAFC" }} />
+                <input
+                  accept="image/*,.pdf"
+                  ref={uploadInputRef}
+                  style={{ display:"none" }}
+                  type="file"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void startUpload(file.name);
+                  }}
+                />
+                <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
+                  <button className="btn-primary" onClick={() => uploadInputRef.current?.click()} style={{ padding:"10px 14px", fontSize:"13px", borderRadius:"10px" }}>
+                    Upload note →
+                  </button>
+                  <button className="btn-outline" onClick={() => void startUpload()} style={{ padding:"10px 14px", fontSize:"13px", borderRadius:"10px" }}>
+                    Use sample
+                  </button>
+                </div>
+                <a href="/synthetic-long-covid-clinical-note.svg" target="_blank" rel="noreferrer" style={{ fontSize:"12px", fontWeight:700, color:"#2563EB", textDecoration:"none" }}>
+                  Open sample clinical note image
+                </a>
+                {uploadedFileName && <span style={{ fontSize:"11px", color:"#9CA3AF" }}>Selected: {uploadedFileName}</span>}
+              </div>
+            </div>
           </div>
 
           <p style={{ fontSize: "12px", color: "#CBD5E1", marginTop: "24px", display: "flex", alignItems: "center", gap: "6px" }}>
@@ -503,10 +523,10 @@ export function LightDashboard() {
             <div style={{ display: "grid", gap: "10px" }}>
               <p className={styles.sidebarTitle}>Patient</p>
               {[
-                { label: "Diagnosis",     value: run?.patient?.diagnosis || form.diagnosis,          blue: false },
-                { label: "Biomarkers",    value: run?.patient?.biomarkers?.join(", ") || form.biomarkers,  blue: true  },
-                { label: "Prior therapy", value: run?.patient?.priorTherapies?.join(", ") || form.priorTherapies, blue: false },
-                { label: "Location",      value: run?.patient?.location || form.location,             blue: false },
+                { label: "Diagnosis",     value: run?.patient?.diagnosis || longCovidPatient.diagnosis,          blue: false },
+                { label: "Biomarkers",    value: run?.patient?.biomarkers?.join(", ") || "pending extraction",  blue: true  },
+                { label: "Prior therapy", value: run?.patient?.priorTherapies?.join(", ") || "pending extraction", blue: false },
+                { label: "Location",      value: run?.patient?.location || longCovidPatient.location,             blue: false },
               ].map((f) => (
                 <div key={f.label} className={styles.sidebarField}>
                   <span className={styles.sidebarLabel}>{f.label}</span>
@@ -1255,14 +1275,6 @@ function safeSnippet(value?: string): string | undefined {
   return value.length > 220 ? `${value.slice(0, 220)}...` : value;
 }
 
-// ─── Helpers (DO NOT CHANGE) ──────────────────────────────────────────────────
-function toForm(p: PatientProfile): PatientFormState {
-  return { diagnosis: p.diagnosis, biomarkers: p.biomarkers.join(", "), priorTherapies: p.priorTherapies.join(", "), location: p.location, maxTravelMiles: String(p.maxTravelMiles), preferences: p.preferences.join("\n"), missingDataHints: p.missingDataHints.join("\n") };
-}
-function toPatientInput(form: PatientFormState): PatientProfileInput {
-  return { diagnosis: form.diagnosis, biomarkers: splitList(form.biomarkers), priorTherapies: splitList(form.priorTherapies), location: form.location, maxTravelMiles: Number(form.maxTravelMiles)||seedPatient.maxTravelMiles, preferences: splitList(form.preferences), missingDataHints: splitList(form.missingDataHints) };
-}
-function splitList(v: string): string[] { return v.split(/\n|,/).map(s=>s.trim()).filter(Boolean); }
 function dedupe(arr: string[]): string[] { return [...new Set(arr.map(s=>s.trim()).filter(Boolean))]; }
 
 // Strip markdown from artifact content — show clean readable prose.
