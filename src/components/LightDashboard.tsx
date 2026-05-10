@@ -383,10 +383,10 @@ export function LightDashboard() {
                 onMouseOver={e => { (e.currentTarget as HTMLElement).style.borderColor = "#2563EB"; (e.currentTarget as HTMLElement).style.background = "#EFF6FF"; }}
                 onMouseOut={e => { (e.currentTarget as HTMLElement).style.borderColor = "#CBD5E1"; (e.currentTarget as HTMLElement).style.background = "#FAFBFF"; }}>
                 <p style={{ fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>Click to upload or drag here</p>
-                <p style={{ fontSize: "12px", color: "#9CA3AF" }}>PDF · JPG · PNG · SVG</p>
+                <p style={{ fontSize: "12px", color: "#9CA3AF" }}>PDF · TXT · JPG · PNG · DOC</p>
                 {uploadedFileName && <p style={{ fontSize: "11px", color: "#2563EB", fontWeight: 600, marginTop: "8px" }}>✓ {uploadedFileName}</p>}
               </div>
-              <input accept="image/*,.pdf" ref={uploadInputRef} style={{ display:"none" }} type="file"
+              <input accept="image/*,.pdf,.txt,.doc,.docx" ref={uploadInputRef} style={{ display:"none" }} type="file"
                 onChange={(event) => { const file = event.target.files?.[0]; if (file) void startUpload(file.name); }}/>
               <button className="btn-outline" onClick={() => void startUpload()} style={{ width:"100%", padding:"11px", fontSize:"13px", borderRadius:"12px", fontFamily:"inherit" }}>
                 Use sample clinical note
