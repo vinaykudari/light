@@ -331,63 +331,66 @@ export function LightDashboard() {
             Either path takes less than a minute.
           </p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", maxWidth: "680px", width: "100%" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", maxWidth: "720px", width: "100%" }}>
 
             {/* Conversation card */}
             <button
               onClick={startConversation}
-              style={{ background: "white", border: "2px solid #E2E8F0", borderRadius: "20px", padding: "32px 28px", textAlign: "left", cursor: "pointer", transition: "all 0.18s", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05)" }}
+              style={{ background: "white", border: "2px solid #E2E8F0", borderRadius: "20px", padding: "36px 28px", textAlign: "left", cursor: "pointer", transition: "all 0.18s", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column" }}
               onMouseOver={e => { (e.currentTarget as HTMLElement).style.borderColor = "#2563EB"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; }}
               onMouseOut={e => { (e.currentTarget as HTMLElement).style.borderColor = "#E2E8F0"; (e.currentTarget as HTMLElement).style.transform = "none"; }}>
-              <div style={{ fontSize: "32px", marginBottom: "16px" }}>💬</div>
-              <div style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: "18px", fontWeight: 600, color: "#0D1117", marginBottom: "8px" }}>
+              {/* Icon */}
+              <div style={{ width: 52, height: 52, borderRadius: "16px", background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "20px" }}>
+                <svg width="26" height="26" fill="none" stroke="#2563EB" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                </svg>
+              </div>
+              <div style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: "20px", fontWeight: 600, color: "#0D1117", marginBottom: "10px" }}>
                 Walk me through it
               </div>
-              <p style={{ fontSize: "13px", color: "#6B7280", lineHeight: 1.6, marginBottom: "20px" }}>
-                Answer a few questions like you're talking to a doctor. Light listens and finds clinical trial options.
+              <p style={{ fontSize: "14px", color: "#6B7280", lineHeight: 1.65, marginBottom: "28px", flex: 1 }}>
+                Answer a few questions like you're talking to a doctor. Light listens and finds the right trials for you.
               </p>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: "#2563EB" }}>
-                Start talking →
-              </span>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "#2563EB", color: "white", fontSize: "14px", fontWeight: 700, padding: "12px 20px", borderRadius: "12px" }}>
+                Start talking
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                </svg>
+              </div>
             </button>
 
             {/* Upload card */}
             <div
-              style={{ background: "white", border: "2px solid #E2E8F0", borderRadius: "20px", padding: "32px 28px", textAlign: "left", transition: "all 0.18s", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05)" }}
+              style={{ background: "white", border: "2px solid #E2E8F0", borderRadius: "20px", padding: "36px 28px", textAlign: "left", transition: "all 0.18s", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column" }}
               onMouseOver={e => { (e.currentTarget as HTMLElement).style.borderColor = "#2563EB"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; }}
               onMouseOut={e => { (e.currentTarget as HTMLElement).style.borderColor = "#E2E8F0"; (e.currentTarget as HTMLElement).style.transform = "none"; }}>
-              <div style={{ fontSize: "32px", marginBottom: "16px" }}>📎</div>
-              <div style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: "18px", fontWeight: 600, color: "#0D1117", marginBottom: "8px" }}>
+              {/* Icon */}
+              <div style={{ width: 52, height: 52, borderRadius: "16px", background: "#F0FDF4", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "20px" }}>
+                <svg width="26" height="26" fill="none" stroke="#059669" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+              </div>
+              <div style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: "20px", fontWeight: 600, color: "#0D1117", marginBottom: "10px" }}>
                 Upload my records
               </div>
-              <p style={{ fontSize: "13px", color: "#6B7280", lineHeight: 1.6, marginBottom: "20px" }}>
-                Drop a PDF, clinical note, lab report, or referral letter. Light reads it and extracts your profile.
+              <p style={{ fontSize: "14px", color: "#6B7280", lineHeight: 1.65, marginBottom: "28px", flex: 1 }}>
+                Drop a PDF, clinical note, lab report, or referral letter. Light reads it and extracts your profile automatically.
               </p>
-              <div style={{ display:"grid", gap:"10px" }}>
-                <img alt="Synthetic clinical note preview" src="/synthetic-long-covid-clinical-note.svg" style={{ width:"100%", borderRadius:"12px", border:"1px solid #E2E8F0", background:"#F8FAFC" }} />
-                <input
-                  accept="image/*,.pdf"
-                  ref={uploadInputRef}
-                  style={{ display:"none" }}
-                  type="file"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) void startUpload(file.name);
-                  }}
-                />
-                <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
-                  <button className="btn-primary" onClick={() => uploadInputRef.current?.click()} style={{ padding:"10px 14px", fontSize:"13px", borderRadius:"10px" }}>
-                    Upload note →
-                  </button>
-                  <button className="btn-outline" onClick={() => void startUpload()} style={{ padding:"10px 14px", fontSize:"13px", borderRadius:"10px" }}>
-                    Use sample
-                  </button>
-                </div>
-                <a href="/synthetic-long-covid-clinical-note.svg" target="_blank" rel="noreferrer" style={{ fontSize:"12px", fontWeight:700, color:"#2563EB", textDecoration:"none" }}>
-                  Open sample clinical note image
-                </a>
-                {uploadedFileName && <span style={{ fontSize:"11px", color:"#9CA3AF" }}>Selected: {uploadedFileName}</span>}
+              {/* Upload zone */}
+              <div
+                onClick={() => uploadInputRef.current?.click()}
+                style={{ border: "2px dashed #CBD5E1", borderRadius: "14px", padding: "24px 16px", textAlign: "center", cursor: "pointer", marginBottom: "12px", background: "#FAFBFF", transition: "all 0.15s" }}
+                onMouseOver={e => { (e.currentTarget as HTMLElement).style.borderColor = "#2563EB"; (e.currentTarget as HTMLElement).style.background = "#EFF6FF"; }}
+                onMouseOut={e => { (e.currentTarget as HTMLElement).style.borderColor = "#CBD5E1"; (e.currentTarget as HTMLElement).style.background = "#FAFBFF"; }}>
+                <p style={{ fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>Click to upload or drag here</p>
+                <p style={{ fontSize: "12px", color: "#9CA3AF" }}>PDF · JPG · PNG · SVG</p>
+                {uploadedFileName && <p style={{ fontSize: "11px", color: "#2563EB", fontWeight: 600, marginTop: "8px" }}>✓ {uploadedFileName}</p>}
               </div>
+              <input accept="image/*,.pdf" ref={uploadInputRef} style={{ display:"none" }} type="file"
+                onChange={(event) => { const file = event.target.files?.[0]; if (file) void startUpload(file.name); }}/>
+              <button className="btn-outline" onClick={() => void startUpload()} style={{ width:"100%", padding:"11px", fontSize:"13px", borderRadius:"12px", fontFamily:"inherit" }}>
+                Use sample clinical note
+              </button>
             </div>
           </div>
 
@@ -687,7 +690,7 @@ export function LightDashboard() {
 
               {/* Community */}
               {viewMode === "patient" && patientTab === "community" && (
-                <div style={{ maxWidth:"720px", display:"grid", gap:"24px" }}>
+                <div style={{ display:"grid", gap:"24px" }}>
                   <div>
                     <h2 style={{ fontFamily:"'Fraunces',serif", fontSize:"20px", fontWeight:600, color:"#0D1117", marginBottom:"4px" }}>Community signals</h2>
                     <p style={{ fontSize:"12px", color:"#9CA3AF", marginBottom:"14px" }}>Public X/web patient signals, grouped into practical questions for the care team.</p>
@@ -773,13 +776,24 @@ export function LightDashboard() {
 
               {/* Prepare */}
               {viewMode === "patient" && patientTab === "prepare" && (
-                <div style={{ maxWidth:"720px", display:"grid", gap:"16px" }}>
+                <div style={{ display:"grid", gap:"16px" }}>
                   {!(run?.artifacts?.length) && <Empty text="Application materials will appear after processing." />}
                   {(run?.artifacts ?? []).map((art) => {
                     const isEmail = art.kind === "coordinator_email";
                     const isChecklist = art.kind === "clinician_checklist" || art.kind === "missing_data_checklist";
-                    const content = isEmail ? (emailText || art.content) : art.content;
-                    const checkItems = isChecklist ? content.split("\n").map(l => l.replace(/^[-•*]\s*|\[\s*\]\s*/,"").replace(/\*\*/g,"").trim()).filter(Boolean) : [];
+                    const rawContent = isEmail ? (emailText || art.content) : art.content;
+                    const content = isEmail ? normalizeEmail(rawContent) : rawContent;
+
+                    // Checklist: split on newlines AND inline "– item" separators
+                    const checkItems = isChecklist
+                      ? stripArtifactMarkdown(content)
+                          .replace(/ – /g, "\n– ")           // inline dashes → own lines
+                          .replace(/:\s*\n/g, "\n")           // strip trailing colon from section headers
+                          .split("\n")
+                          .map(l => l.replace(/^[–\-•*]\s*|\[\s*\]\s*/,"").replace(/\*\*/g,"").trim())
+                          .filter(l => l.length > 4)
+                      : [];
+
                     return (
                       <div key={art.kind} className={styles.artifactCard}>
                         <div className={styles.artifactCardHeader}>
@@ -788,28 +802,40 @@ export function LightDashboard() {
                             <span className={styles.artifactLabel}>{art.title}</span>
                           </div>
                           <button className={`${styles.copyBtn} ${copied===art.kind ? styles.copyBtnCopied : styles.copyBtnDefault}`}
-                            onClick={() => cp(art.kind, content)}>
+                            onClick={() => cp(art.kind, rawContent)}>
                             {copied===art.kind ? "✓ Copied!" : "Copy"}
                           </button>
                         </div>
                         <div style={{ padding:"16px 20px" }}>
                           {isEmail && (
                             <>
-                              <textarea style={{ width:"100%", fontSize:"13px", lineHeight:1.7, border:"1.5px solid #E2E8F0", borderRadius:"12px", padding:"14px 16px", resize:"vertical", minHeight:"200px", fontFamily:"inherit", color:"#374151" }}
-                                value={emailText||art.content} onChange={e => setEmailText(e.target.value)}/>
-                              <button onClick={() => setEmailSent(true)} style={{ marginTop:"10px", width:"100%", padding:"12px", borderRadius:"12px", fontSize:"13px", fontWeight:700, border:"none", cursor:"pointer", background:emailSent?"#D1FAE5":"#2563EB", color:emailSent?"#065F46":"white", fontFamily:"inherit" }}>
+                              {/* Email preview styled like a real email */}
+                              <div style={{ border:"1px solid #E2E8F0", borderRadius:"12px", overflow:"hidden", marginBottom:"10px" }}>
+                                <div style={{ background:"#F8FAFC", padding:"10px 16px", borderBottom:"1px solid #E2E8F0", fontSize:"11px", color:"#9CA3AF", fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" }}>
+                                  Email draft — click to edit
+                                </div>
+                                <textarea
+                                  style={{ width:"100%", fontSize:"13px", lineHeight:1.8, border:"none", padding:"16px", resize:"vertical", minHeight:"220px", fontFamily:"'Courier New',monospace", color:"#1a1a2e", background:"white", display:"block" }}
+                                  value={content}
+                                  onChange={e => setEmailText(e.target.value)}
+                                />
+                              </div>
+                              <button onClick={() => setEmailSent(true)} style={{ width:"100%", padding:"12px", borderRadius:"12px", fontSize:"13px", fontWeight:700, border:"none", cursor:"pointer", background:emailSent?"#D1FAE5":"#2563EB", color:emailSent?"#065F46":"white", fontFamily:"inherit" }}>
                                 {emailSent ? "✓ Ready — copy and send" : "Mark as ready to send"}
                               </button>
                             </>
                           )}
                           {isChecklist && (
-                            <div style={{ display:"grid", gap:"8px" }}>
+                            <div style={{ display:"grid", gap:"10px" }}>
                               {checkItems.map((item,i) => (
-                                <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:"10px" }}>
-                                  <div style={{ width:18, height:18, borderRadius:5, border:"2px solid #CBD5E1", flexShrink:0, marginTop:2 }}/>
-                                  <span style={{ fontSize:"13px", color:"#374151", lineHeight:1.5 }}>{item}</span>
+                                <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:"12px" }}>
+                                  <div style={{ width:20, height:20, borderRadius:6, border:"2px solid #CBD5E1", flexShrink:0, marginTop:1 }}/>
+                                  <span style={{ fontSize:"13px", color:"#374151", lineHeight:1.6 }}>{item}</span>
                                 </div>
                               ))}
+                              {checkItems.length === 0 && (
+                                <p style={{ fontSize:"13px", color:"#9CA3AF" }}>No checklist items extracted.</p>
+                              )}
                             </div>
                           )}
                           {!isEmail && !isChecklist && (
@@ -842,7 +868,7 @@ export function LightDashboard() {
 
               {/* Feed */}
               {viewMode === "patient" && patientTab === "feed" && (
-                <div style={{ maxWidth: "680px" }}>
+                <div>
                   <div className={styles.feedHeader}>
                     <span className={styles.feedRefreshDot}/>
                     Research + community feed for <strong style={{ color:"#0D1117", margin:"0 4px" }}>
@@ -1277,6 +1303,19 @@ function safeSnippet(value?: string): string | undefined {
 }
 
 function dedupe(arr: string[]): string[] { return [...new Set(arr.map(s=>s.trim()).filter(Boolean))]; }
+
+// Add proper line breaks to LLM-generated email content so it renders like a real email.
+function normalizeEmail(content: string): string {
+  return content
+    .replace(/\*\*/g, "")
+    .replace(/#{1,4}\s*/g, "")
+    .replace(/\s+(Subject:)/g, "\n$1")
+    .replace(/\s+(Dear |To |Hi |Hello )/g, "\n\n$1")
+    .replace(/\s+(Missing|Questions|Information needed|To confirm|Sincerely|Best regards|Thank you)/gi, "\n\n$1")
+    .replace(/ – /g, "\n– ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 // Strip markdown from artifact content — show clean readable prose.
 function stripArtifactMarkdown(content: string): string {
