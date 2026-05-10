@@ -16,7 +16,7 @@ const sponsors: Sponsor[] = [
   { name: "Convex", domain: "convex.dev", use: "realtime state model", match: /realtime|state|dashboard/i },
   { name: "X.com", domain: "x.com", use: "public patient signals", match: /x api|x\.com|public post|patient-experience/i, capability: "xPublicSearch" },
   { name: "OpenAI", domain: "openai.com", use: "agent reasoning", match: /llm|synthes|extract|rank/i, capability: "llm" },
-  { name: "ClinicalTrials.gov", domain: "clinicaltrials.gov", use: "official trial records", match: /clinicaltrials|trial records|nct/i, capability: "clinicalTrials" },
+  { name: "ClinicalTrials.gov", domain: "clinicaltrials.gov", use: "official clinical trial records", match: /clinicaltrials|trial records|nct/i, capability: "clinicalTrials" },
   { name: "PubMed", domain: "ncbi.nlm.nih.gov", use: "paper retrieval", match: /pubmed|papers|research/i, capability: "pubMed" },
 ];
 

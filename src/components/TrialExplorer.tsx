@@ -35,10 +35,10 @@ export function TrialExplorer({
   return (
     <section className={`${styles.commandPanel} panel`} id="trial-matches">
       <div className={styles.panelHeader}>
-        <Title kicker="Matches" title="Trials" />
+        <Title kicker="Matches" title="Clinical Trials" />
         <span className={styles.badge}>{trials.length ? `${trials.length} candidates` : "waiting"}</span>
       </div>
-      {!selected ? <Empty text="Run the agents to open a trial dashboard." /> : (
+      {!selected ? <Empty text="Run the agents to open a clinical trial dashboard." /> : (
         <div className={styles.trialConsole}>
           <div className={styles.trialRail}>
             {trials.map((trial) => (
@@ -122,7 +122,7 @@ function TrialScopedChat({ runId, runStatus, trial }: { runId?: string; runStatu
       return;
     }
     const indexed = json.indexedSources?.filter((source) => source.status === "indexed").length ?? 0;
-    setStatus(`${json.scope?.kind ?? "trial"} scope / ${indexed} sources`);
+    setStatus(`${json.scope?.kind ?? "clinical trial"} scope / ${indexed} sources`);
     setMessages([...next, { role: "assistant", content: json.answer }]);
   }
 
@@ -133,22 +133,22 @@ function TrialScopedChat({ runId, runStatus, trial }: { runId?: string; runStatu
         <span className={styles.badge}>{loading ? "thinking" : status}</span>
       </div>
       <div className={styles.chatLog} aria-live="polite">
-        {!messages.length ? <Empty text="Ask trial-specific questions. The chat is scoped to this NCT record and the indexed evidence corpus." /> : null}
+        {!messages.length ? <Empty text="Ask clinical trial-specific questions. The chat is scoped to this NCT record and the indexed evidence corpus." /> : null}
         {messages.map((message, index) => (
           <article className={styles.chatBubble} data-role={message.role} key={`${message.role}-${index}`}>
-            <strong>{message.role === "user" ? "You" : "Light trial copilot"}</strong>
+            <strong>{message.role === "user" ? "You" : "Light clinical trial copilot"}</strong>
             {message.role === "assistant" ? <MarkdownMessage content={message.content} /> : <p>{message.content}</p>}
           </article>
         ))}
-        {loading ? <ThinkingBubble label="Light trial copilot" /> : null}
+        {loading ? <ThinkingBubble label="Light clinical trial copilot" /> : null}
       </div>
       <div className={styles.suggestionRow}>
-        {["What should we verify before referral?", "Which symptoms does this trial appear to target?", "What should we ask the coordinator?"].map((item) => (
+        {["What should we verify before referral?", "Which symptoms does this clinical trial appear to target?", "What should we ask the coordinator?"].map((item) => (
           <button disabled={!ready || loading} key={item} onClick={() => setQuestion(item)} type="button">{item}</button>
         ))}
       </div>
       <form className={styles.chatForm} onSubmit={ask}>
-        <input disabled={!ready || loading} onChange={(event) => setQuestion(event.target.value)} placeholder={ready ? `Ask about ${trial.nctId}...` : "Trial chat unlocks when the run completes"} value={question} />
+        <input disabled={!ready || loading} onChange={(event) => setQuestion(event.target.value)} placeholder={ready ? `Ask about ${trial.nctId}...` : "Clinical trial chat unlocks when the run completes"} value={question} />
         <button className={styles.primaryButton} disabled={!ready || loading || !question.trim()} type="submit">Ask</button>
       </form>
     </section>

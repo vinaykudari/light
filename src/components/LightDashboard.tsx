@@ -13,6 +13,7 @@ import type {
   TrialIntelligenceState, TrialCard as TrialCardType,
 } from "@/lib/types";
 import { AgentEventStream } from "./AgentEventStream";
+import { ArchitectureDiagram } from "./ArchitectureDiagram";
 import { ArtifactPanel } from "./ArtifactPanel";
 import type { ConversationPayload } from "./DoctorConversationDemo";
 import { EligibilityPanel } from "./EligibilityPanel";
@@ -30,7 +31,7 @@ const HDR = [styles.trialHeaderBlue1, styles.trialHeaderBlue2, styles.trialHeade
 type Step = "landing" | "intake" | "conversation" | "processing" | "dashboard";
 type ViewMode = "patient" | "technical";
 type PatientTab = "trials" | "community" | "prepare" | "feed";
-type TechTab = "agents" | "research" | "voice" | "eligibility" | "artifacts";
+type TechTab = "architecture" | "agents" | "research" | "voice" | "eligibility" | "artifacts";
 type TrialEnrichment = {
   briefSummary?: string;
   dosing?: string;
@@ -292,20 +293,20 @@ export function LightDashboard() {
             Clinical trial matching
           </p>
           <h1 style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: "clamp(32px,5vw,52px)", fontWeight: 600, color: "#0D1117", maxWidth: "640px", lineHeight: 1.15, marginBottom: "20px" }}>
-            No patient should make a life-or-death decision without the full picture.
+            No patient should make a clinical trial decision without the full picture.
           </h1>
           <p style={{ fontSize: "18px", color: "#6B7280", maxWidth: "440px", lineHeight: 1.6, marginBottom: "40px" }}>
-            Light reads your records and finds every trial you qualify for — in seconds, at no cost.
+            Light reads your context and finds clinical trials worth discussing with your clinician.
           </p>
           <button
             onClick={() => setStep("intake")}
             className="btn-primary"
             style={{ fontSize: "16px", padding: "16px 36px", borderRadius: "14px" }}>
-            Find my trials →
+            Find clinical trials →
           </button>
           <div style={{ display: "flex", gap: "32px", marginTop: "48px" }}>
             {[
-              { value: "18,000+", label: "trials recruiting now" },
+              { value: "18,000+", label: "clinical trials recruiting" },
               { value: "< 30s",   label: "to your matches" },
               { value: "Free",    label: "for patients, always" },
             ].map((s) => (
@@ -343,7 +344,7 @@ export function LightDashboard() {
                 Walk me through it
               </div>
               <p style={{ fontSize: "13px", color: "#6B7280", lineHeight: 1.6, marginBottom: "20px" }}>
-                Answer a few questions like you're talking to a doctor. Light listens and finds your trials.
+                Answer a few questions like you're talking to a doctor. Light listens and finds clinical trial options.
               </p>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: "#2563EB" }}>
                 Start talking →
@@ -361,7 +362,7 @@ export function LightDashboard() {
                 Upload my records
               </div>
               <p style={{ fontSize: "13px", color: "#6B7280", lineHeight: 1.6, marginBottom: "20px" }}>
-                Drop a PDF, genomic report, or oncologist letter. Light reads it and extracts your profile.
+                Drop a PDF, clinical note, lab report, or referral letter. Light reads it and extracts your profile.
               </p>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: "#2563EB" }}>
                 Upload →
@@ -588,13 +589,13 @@ export function LightDashboard() {
                 ? (["trials","community","prepare","feed"] as PatientTab[]).map((t) => (
                     <button key={t} onClick={() => setPatientTab(t)}
                       className={`${styles.tabBtn} ${patientTab === t ? styles.tabBtnActive : ""}`}>
-                      {t === "trials" ? "Trials" : t === "community" ? "Community" : t === "prepare" ? "Prepare" : "Feed"}
+                      {t === "trials" ? "Clinical Trials" : t === "community" ? "Community" : t === "prepare" ? "Prepare" : "Feed"}
                     </button>
                   ))
-                : (["agents","research","voice","eligibility","artifacts"] as TechTab[]).map((t) => (
+                : (["architecture","agents","research","voice","eligibility","artifacts"] as TechTab[]).map((t) => (
                     <button key={t} onClick={() => setTechTab(t)}
                       className={`${styles.tabBtn} ${techTab === t ? styles.tabBtnActiveTech : ""}`}>
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                      {t === "architecture" ? "Architecture" : t.charAt(0).toUpperCase() + t.slice(1)}
                     </button>
                   ))
               }
@@ -607,12 +608,12 @@ export function LightDashboard() {
                 <>
                   <div style={{ marginBottom: "20px" }}>
                     <h2 style={{ fontFamily:"'Fraunces',serif", fontSize:"24px", fontWeight:600, color:"#0D1117", marginBottom:"4px" }}>
-                      <span style={{ color:"#2563EB" }}>{run?.trials?.length ?? "—"} trials</span> match your profile
+                      <span style={{ color:"#2563EB" }}>{run?.trials?.length ?? "—"} clinical trials</span> match your profile
                     </h2>
-                    <p style={{ fontSize:"13px", color:"#9CA3AF" }}>from 18,000+ recruiting trials · ranked by match confidence</p>
+                    <p style={{ fontSize:"13px", color:"#9CA3AF" }}>from recruiting clinical trials · ranked by profile fit and evidence context</p>
                   </div>
                   <div style={{ display:"grid", gap:"16px" }}>
-                  {!(run?.trials?.length) && <Empty text={isProcessing ? "Live agents are streaming evidence and trial retrieval now." : "No trials yet."} />}
+                  {!(run?.trials?.length) && <Empty text={isProcessing ? "Live agents are streaming evidence and clinical trial retrieval now." : "No clinical trials yet."} />}
                   {(run?.trials ?? []).map((trial, idx) => (
                       <TrialCardNew key={trial.nctId} trial={trial} idx={idx}
                         voiceTheme={run?.patientVoice?.[idx % Math.max(run?.patientVoice?.length ?? 1, 1)]}
@@ -636,7 +637,7 @@ export function LightDashboard() {
                     )}
                     <div className={styles.chatInputRow}>
                       <input className={styles.chatInputField}
-                        placeholder={chatLoading ? "Light is thinking…" : "Ask anything about these trials…"}
+                        placeholder={chatLoading ? "Light is thinking…" : "Ask anything about these clinical trials…"}
                         value={chatInput} onChange={(e) => setChatInput(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && sendChat()}
                         disabled={chatLoading} />
@@ -814,7 +815,7 @@ export function LightDashboard() {
                       </div>
                     </div>
                   )}
-                  <p className={styles.disclaimer}>Light does not provide medical advice. Always discuss with your oncologist.</p>
+                  <p className={styles.disclaimer}>Light does not provide medical advice. Always discuss with your clinician.</p>
                 </div>
               )}
 
@@ -828,7 +829,7 @@ export function LightDashboard() {
                     </strong>
                   </div>
                   <div className={styles.feedList}>
-                    {!feedItems.length && <Empty text={isProcessing ? "Live feed sources will appear as agents retrieve trials, papers, and public signals." : "Run Light to build a live feed from real sources."} />}
+                    {!feedItems.length && <Empty text={isProcessing ? "Live feed sources will appear as agents retrieve clinical trials, papers, and public signals." : "Run Light to build a live feed from real sources."} />}
                     {feedItems.map((item) => {
                       const isPaper = item.kind === "paper";
                       const isTrial = item.kind === "trial";
@@ -865,6 +866,7 @@ export function LightDashboard() {
               {/* Technical tabs */}
               {viewMode === "technical" && (
                 <div className={styles.techPanel}>
+                  {techTab==="architecture" && <ArchitectureDiagram run={run}/>}
                   {techTab==="agents"      && <AgentEventStream events={run?.events??[]} status={run?.status??"created"}/>}
                   {techTab==="research"    && <ResearchPanel summary={run?.research}/>}
                   {techTab==="voice"       && <PatientVoicePanel themes={run?.patientVoice??[]} expertSources={run?.expertSources??[]}/>}
@@ -897,7 +899,7 @@ export function LightDashboard() {
             <div className={styles.detailHeader}>
               <div className={styles.detailHeaderTop}>
                 <div>
-                  <p className={styles.detailEyebrow}>Trial detail</p>
+                  <p className={styles.detailEyebrow}>Clinical trial detail</p>
                   <h2 className={styles.detailTitle}>{selectedTrial.title}</h2>
                   <p className={styles.detailDrugs}>{selectedTrial.phase??""}</p>
                 </div>
@@ -967,7 +969,7 @@ export function LightDashboard() {
                     {/* Plain-language summary */}
                     {enrich?.briefSummary && (
                       <div style={{background:"#EFF6FF",borderRadius:"14px",padding:"16px"}}>
-                        <p style={{fontSize:"11px",fontWeight:700,color:"#2563EB",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"8px"}}>What this trial is about</p>
+                        <p style={{fontSize:"11px",fontWeight:700,color:"#2563EB",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"8px"}}>What this clinical trial is about</p>
                         <p style={{fontSize:"13px",color:"#374151",lineHeight:1.6}}>{enrich.briefSummary.slice(0,400)}{enrich.briefSummary.length>400?"…":""}</p>
                       </div>
                     )}
@@ -976,7 +978,7 @@ export function LightDashboard() {
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px"}}>
                       {phaseLabel && (
                         <div style={{background:"#F8FAFC",borderRadius:"12px",padding:"14px"}}>
-                          <p style={{fontSize:"10px",fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"4px"}}>Trial stage</p>
+                          <p style={{fontSize:"10px",fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"4px"}}>Clinical trial stage</p>
                           <p style={{fontSize:"14px",fontWeight:600,color:"#0D1117",marginBottom:"4px"}}>{phaseLabel}</p>
                           <p style={{fontSize:"11px",color:"#6B7280",lineHeight:1.4}}>{phaseExplain[phaseLabel] ?? ""}</p>
                         </div>
@@ -1011,7 +1013,7 @@ export function LightDashboard() {
                       )}
                       {enrich?.completionDate && (
                         <div style={{background:"#F8FAFC",borderRadius:"12px",padding:"14px"}}>
-                          <p style={{fontSize:"10px",fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"4px"}}>Trial closes</p>
+                          <p style={{fontSize:"10px",fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"4px"}}>Clinical trial closes</p>
                           <p style={{fontSize:"13px",fontWeight:600,color:"#0D1117"}}>{enrich.completionDate}</p>
                           <p style={{fontSize:"11px",color:"#6B7280"}}>Estimated completion</p>
                         </div>
@@ -1056,7 +1058,7 @@ export function LightDashboard() {
                     {selectedTrial.sourceUrl && (
                       <a href={selectedTrial.sourceUrl} target="_blank" rel="noreferrer"
                         style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"#F8FAFC",borderRadius:"12px",padding:"14px 16px",border:"1px solid #E2E8F0",textDecoration:"none",color:"#2563EB",fontSize:"13px",fontWeight:600}}>
-                        Read full trial record on ClinicalTrials.gov
+                        Read full clinical trial record on ClinicalTrials.gov
                         <span>↗</span>
                       </a>
                     )}
@@ -1161,8 +1163,8 @@ function TrialCardNew({ trial, idx, voiceTheme, onDetail, onApply, onCommunity }
           </div>
         )}
         <div className={styles.cardActions}>
-          <button className="btn-outline" onClick={onDetail}>Side effects + evidence</button>
-          <button className="btn-primary" onClick={onApply}>Apply now →</button>
+          <button className="btn-outline" onClick={onDetail}>Signals + evidence</button>
+          <button className="btn-primary" onClick={onApply}>Prepare referral →</button>
         </div>
       </div>
     </article>
@@ -1172,7 +1174,7 @@ function TrialCardNew({ trial, idx, voiceTheme, onDetail, onApply, onCommunity }
 const AGENT_META: Record<AgentName, { label: string; domain: string; icon: string }> = {
   system: { label: "Run Control", domain: "convex.dev", icon: "●" },
   conversation: { label: "Conversation", domain: "openai.com", icon: "C" },
-  trial: { label: "Trial Agent", domain: "clinicaltrials.gov", icon: "T" },
+  trial: { label: "Clinical Trial Agent", domain: "clinicaltrials.gov", icon: "T" },
   research: { label: "Research Agent", domain: "ncbi.nlm.nih.gov", icon: "R" },
   patient_voice: { label: "Voice Agent", domain: "x.com", icon: "X" },
   eligibility: { label: "Eligibility", domain: "trynia.ai", icon: "E" },
@@ -1208,7 +1210,7 @@ function buildFeedItems(run: TrialIntelligenceState | null): LiveFeedItem[] {
     kind: "trial",
     title: trial.title,
     sourceLabel: trial.nctId,
-    detailLabel: [trial.phase, trial.status].filter(Boolean).join(" · ") || "Official trial record",
+    detailLabel: [trial.phase, trial.status].filter(Boolean).join(" · ") || "Official clinical trial record",
     body: trial.matchedCriteria.slice(0, 2).join(" · "),
     url: trial.sourceUrl,
   }));
@@ -1263,14 +1265,14 @@ function toPatientInput(form: PatientFormState): PatientProfileInput {
 function splitList(v: string): string[] { return v.split(/\n|,/).map(s=>s.trim()).filter(Boolean); }
 function dedupe(arr: string[]): string[] { return [...new Set(arr.map(s=>s.trim()).filter(Boolean))]; }
 
-// Strip markdown syntax from artifact content — headings, bold, bullets — leaving clean readable prose.
+// Strip markdown from artifact content — show clean readable prose.
 function stripArtifactMarkdown(content: string): string {
   return content
     .replace(/([^\n])(#{1,4} )/g, "$1\n\n$2")  // ensure ## starts on its own line
-    .replace(/^#{1,4}\s+/gm, "")               // remove ## markers from line starts
+    .replace(/^#{1,4}\s+/gm, "")               // remove ## markers
     .replace(/\*\*/g, "")                       // remove bold markers
     .replace(/\*([^*]+)\*/g, "$1")             // remove italic markers
-    .replace(/^[-*]\s+/gm, "• ")               // normalise bullet points
+    .replace(/^[-*]\s+/gm, "• ")               // normalise bullets
     .replace(/\n{3,}/g, "\n\n")                // collapse excess blank lines
     .trim();
 }
