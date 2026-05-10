@@ -292,7 +292,7 @@ export function LightDashboard() {
             Clinical trial matching
           </p>
           <h1 style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: "clamp(32px,5vw,52px)", fontWeight: 600, color: "#0D1117", maxWidth: "640px", lineHeight: 1.15, marginBottom: "20px" }}>
-            No cancer patient should make a life-or-death decision without the full picture.
+            No patient should make a life-or-death decision without the full picture.
           </h1>
           <p style={{ fontSize: "18px", color: "#6B7280", maxWidth: "440px", lineHeight: 1.6, marginBottom: "40px" }}>
             Light reads your records and finds every trial you qualify for — in seconds, at no cost.
@@ -305,7 +305,7 @@ export function LightDashboard() {
           </button>
           <div style={{ display: "flex", gap: "32px", marginTop: "48px" }}>
             {[
-              { value: "18,000+", label: "cancer trials recruiting" },
+              { value: "18,000+", label: "trials recruiting now" },
               { value: "< 30s",   label: "to your matches" },
               { value: "Free",    label: "for patients, always" },
             ].map((s) => (
@@ -609,7 +609,7 @@ export function LightDashboard() {
                     <h2 style={{ fontFamily:"'Fraunces',serif", fontSize:"24px", fontWeight:600, color:"#0D1117", marginBottom:"4px" }}>
                       <span style={{ color:"#2563EB" }}>{run?.trials?.length ?? "—"} trials</span> match your profile
                     </h2>
-                    <p style={{ fontSize:"13px", color:"#9CA3AF" }}>from 18,000+ recruiting cancer trials · ranked by match confidence</p>
+                    <p style={{ fontSize:"13px", color:"#9CA3AF" }}>from 18,000+ recruiting trials · ranked by match confidence</p>
                   </div>
                   <div style={{ display:"grid", gap:"16px" }}>
                   {!(run?.trials?.length) && <Empty text={isProcessing ? "Live agents are streaming evidence and trial retrieval now." : "No trials yet."} />}
@@ -791,8 +791,10 @@ export function LightDashboard() {
                             </div>
                           )}
                           {!isEmail && !isChecklist && (
-                            <div style={{ background:"#F8FAFC", borderRadius:"10px", padding:"16px" }}>
-                              <MarkdownMessage content={normalizeArtifact(content)} />
+                            <div style={{ background:"#F8FAFC", borderRadius:"10px", padding:"16px", fontSize:"13px", color:"#374151", lineHeight:1.8 }}>
+                              {stripArtifactMarkdown(content).split("\n\n").filter(Boolean).map((para, i) => (
+                                <p key={i} style={{ margin: i === 0 ? 0 : "12px 0 0" }}>{para.trim()}</p>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -1261,12 +1263,14 @@ function toPatientInput(form: PatientFormState): PatientProfileInput {
 function splitList(v: string): string[] { return v.split(/\n|,/).map(s=>s.trim()).filter(Boolean); }
 function dedupe(arr: string[]): string[] { return [...new Set(arr.map(s=>s.trim()).filter(Boolean))]; }
 
-// LLM briefing content sometimes puts ## headings inline on the same line.
-// This ensures each heading starts on its own line so MarkdownMessage parses it correctly.
-function normalizeArtifact(content: string): string {
+// Strip markdown syntax from artifact content — headings, bold, bullets — leaving clean readable prose.
+function stripArtifactMarkdown(content: string): string {
   return content
-    .replace(/([^\n])(#{1,4} )/g, "$1\n\n$2")  // insert blank line before ## not at line start
-    .replace(/\n(#{1,4} )/g, "\n\n$1")          // ensure double newline before any heading
-    .replace(/\n{3,}/g, "\n\n")                  // collapse excess blank lines
+    .replace(/([^\n])(#{1,4} )/g, "$1\n\n$2")  // ensure ## starts on its own line
+    .replace(/^#{1,4}\s+/gm, "")               // remove ## markers from line starts
+    .replace(/\*\*/g, "")                       // remove bold markers
+    .replace(/\*([^*]+)\*/g, "$1")             // remove italic markers
+    .replace(/^[-*]\s+/gm, "• ")               // normalise bullet points
+    .replace(/\n{3,}/g, "\n\n")                // collapse excess blank lines
     .trim();
 }
