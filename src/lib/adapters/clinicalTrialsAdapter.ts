@@ -121,8 +121,8 @@ function normalizeStudy(study: CtStudy, patient: PatientProfile): TrialCard | un
     distanceMiles: estimateDistance(section?.contactsLocationsModule?.locations ?? []),
     matchedCriteria: aiExtracted ? ["Awaiting LLM relevance ranking against official protocol text"] : buildMatches(patient, criteria, haystack),
     missingCriteria: aiExtracted ? patient.missingDataHints.slice(0, 6) : buildMissing(patient, criteria),
-    exclusionRisks: aiExtracted ? ["Exclusion criteria require clinician/study-team review"] : buildRisks(criteria),
-    coordinatorQuestions: aiExtracted ? ["Which protocol criteria and study procedures are most relevant to this symptom profile?"] : buildQuestions(criteria),
+    exclusionRisks: aiExtracted ? ["Exclusion criteria require clinician/study-team review"] : buildRisks(patient, criteria),
+    coordinatorQuestions: aiExtracted ? ["Which protocol criteria and study procedures are most relevant to this patient profile?"] : buildQuestions(patient, criteria),
     sourceUrl: `https://clinicaltrials.gov/study/${id}`,
     source: "clinicaltrials.gov",
   };
@@ -199,11 +199,11 @@ function buildMissing(patient: PatientProfile, criteria: string): string[] {
   ]).slice(0, 6);
 }
 
-function buildRisks(criteria: string): string[] {
+function buildRisks(patient: PatientProfile, criteria: string): string[] {
   const lower = criteria.toLowerCase();
-  if (/symptom|fatigue|cognitive|dizziness|sleep|pain|covid|sars-cov-2|pasc/i.test(criteria)) {
+  if (isSymptomDrivenContext(patient) && /symptom|fatigue|cognitive|dizziness|sleep|pain|post-viral|dysautonomia/i.test(criteria)) {
     return unique([
-      lower.includes("icu") ? "Prior ICU admission for COVID may need study-team review" : undefined,
+      lower.includes("icu") ? "Prior ICU admission or hospitalization may need study-team review" : undefined,
       lower.includes("major mental or physical illness") ? "Other diagnoses that explain symptoms need review" : undefined,
       lower.includes("vaccination") ? "Recent vaccination timing may affect screening" : undefined,
       lower.includes("medications") ? "Medication stability may matter" : undefined,
@@ -216,13 +216,13 @@ function buildRisks(criteria: string): string[] {
   ]);
 }
 
-function buildQuestions(criteria: string): string[] {
-  if (/symptom|fatigue|cognitive|neurocognitive|dizziness|autonomic|sleep|pain|covid|sars-cov-2|pasc/i.test(criteria)) {
+function buildQuestions(patient: PatientProfile, criteria: string): string[] {
+  if (isSymptomDrivenContext(patient) && /symptom|fatigue|cognitive|neurocognitive|dizziness|autonomic|sleep|pain|post-viral|dysautonomia/i.test(criteria)) {
     return [
-      "Does the trial measure brain fog, PEM, and orthostatic symptoms separately?",
-      "What COVID documentation and symptom-duration evidence are accepted?",
-      "How many in-person visits, blood collections, cognitive tests, or autonomic tests are required?",
-      "What happens if study visits trigger a symptom flare?",
+      "Which reported symptoms are measured separately from general disease burden?",
+      "What diagnosis documentation, symptom-duration evidence, and baseline assessments are accepted?",
+      "How many in-person visits, blood collections, functional tests, or questionnaires are required?",
+      "What happens if study visits worsen symptoms or create practical burden?",
     ];
   }
   const hasBiopsy = /biopsy|tissue|specimen/i.test(criteria);
@@ -231,6 +231,16 @@ function buildQuestions(criteria: string): string[] {
     "What is the expected screening timeline and visit cadence?",
     "Are travel, parking, or lodging supports available?",
   ];
+}
+
+function isSymptomDrivenContext(patient: PatientProfile): boolean {
+  if (!hasSymptoms(patient)) return false;
+  const profileText = [
+    patient.diagnosis,
+    patient.possibleConditionContext,
+    ...(patient.symptoms ?? []),
+  ].join(" ").toLowerCase();
+  return !/cancer|carcinoma|nsclc|tumou?r|oncology|leukemia|lymphoma|melanoma/.test(profileText);
 }
 
 function isActiveTrial(trial: TrialCard): boolean {

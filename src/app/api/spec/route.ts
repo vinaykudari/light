@@ -52,7 +52,7 @@ export function GET() {
             content: {
               "application/json": {
                 schema: { $ref: "#/components/schemas/CreateRunRequest" },
-                examples: { longCovidConversation: { value: longCovidExample } },
+                examples: { lungCancerConversation: { value: lungCancerExample } },
               },
             },
           },
@@ -172,7 +172,7 @@ export function GET() {
       schemas: schemas(),
     },
     "x-light-demo-flow": [
-      "POST /api/runs with longCovidConversation example.",
+      "POST /api/runs with lungCancerConversation example.",
       "Poll GET /api/runs?id={runId}.",
       "Render events as live agent thought stream.",
       "Render trials, research, patientVoice, expertSources, eligibility, burden, artifacts.",
@@ -185,24 +185,35 @@ export function OPTIONS() {
   return optionsWithCors();
 }
 
-const longCovidExample = {
+const lungCancerExample = {
   patient: {
-    age: 34,
-    diagnosis: "symptom conversation pending",
-    biomarkers: [],
-    priorTherapies: ["none documented in demo conversation"],
+    age: 58,
+    diagnosis: "metastatic non-small cell lung cancer with EGFR exon 20 insertion",
+    biomarkers: ["EGFR exon 20 insertion"],
+    priorTherapies: ["platinum-based chemotherapy"],
     location: "San Francisco, CA",
     maxTravelMiles: 50,
-    preferences: ["wants doctor-reviewed research study options", "prefers low-burden visits"],
-    missingDataHints: [],
+    preferences: [
+      "avoid overnight stays",
+      "prefers Friday visits",
+      "wants to understand biopsy requirements",
+      "wants to understand travel reimbursement",
+    ],
+    missingDataHints: [
+      "ECOG performance status",
+      "latest creatinine clearance",
+      "brain metastases stability",
+    ],
   },
   conversationTranscript: [
-    { speaker: "doctor", text: "Tell me what has been going on." },
-    { speaker: "patient", text: "I had COVID about 8 months ago. Since then I have had bad brain fog. I forget words in meetings, I get exhausted after small tasks, and if I go for even a short walk I sometimes crash for a day or two." },
-    { speaker: "doctor", text: "When you say crash, do symptoms get worse after activity?" },
-    { speaker: "patient", text: "Yeah. It is like delayed exhaustion. Also when I stand up, my heart races and I feel dizzy. Sleep is bad too." },
-    { speaker: "doctor", text: "Are you in the Bay Area, and are you interested in research studies if your doctor thinks it is appropriate?" },
-    { speaker: "patient", text: "Yes, I am in San Francisco. I just want to know what to ask my doctor." },
+    { speaker: "doctor", text: "Tell me what you are trying to figure out." },
+    { speaker: "patient", text: "I have metastatic non-small cell lung cancer with an EGFR exon 20 insertion. I already had platinum-based chemotherapy, and my clinician said clinical trials may be worth discussing." },
+    { speaker: "doctor", text: "What would you want Light to help you prepare for?" },
+    { speaker: "patient", text: "I want to know which clinical trials might fit this profile and what questions to ask before referral. I am worried about biopsy requirements, how often visits happen, and whether travel reimbursement is available." },
+    { speaker: "doctor", text: "Where are you located, and how far can you travel?" },
+    { speaker: "patient", text: "I am in San Francisco. I can travel about 50 miles, but I want to avoid overnight stays and I prefer Friday visits if possible." },
+    { speaker: "doctor", text: "What pre-screening details are still missing?" },
+    { speaker: "patient", text: "I do not have ECOG performance status, latest creatinine clearance, or confirmation that any brain metastases are stable." },
   ],
 };
 
